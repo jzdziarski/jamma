@@ -28984,8 +28984,8 @@
 		(uuid "03d3d037-44ee-40d9-8577-23b2fe076a09")
 	)
 	(gr_line
-		(start 148.8 153)
-		(end 148.8 135)
+		(start 149 153)
+		(end 149 135)
 		(stroke
 			(width 0.05)
 			(type default)
@@ -29028,7 +29028,7 @@
 	)
 	(gr_line
 		(start 165.4 153)
-		(end 148.8 153)
+		(end 149 153)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -29037,7 +29037,7 @@
 		(uuid "98158125-6da4-40ea-a111-4dca6eb717fc")
 	)
 	(gr_line
-		(start 148.8 96.4)
+		(start 149 96.4)
 		(end 165.4 96.4)
 		(stroke
 			(width 0.05)
@@ -29057,8 +29057,8 @@
 		(uuid "cae755c8-ecc8-4f9c-98d9-887c1b30417d")
 	)
 	(gr_line
-		(start 148.8 116)
-		(end 148.8 96.4)
+		(start 149 116)
+		(end 149 96.4)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -29637,7 +29637,7 @@
 		)
 	)
 	(gr_text "CHEAP SQUEAK DELUXE"
-		(at 148.8 125.4 90)
+		(at 149.05 125.4 90)
 		(layer "F.SilkS" knockout)
 		(uuid "53ea5a15-bf0a-4bce-ba72-b1df3204c535")
 		(effects
