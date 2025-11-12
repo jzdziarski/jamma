@@ -11619,7 +11619,7 @@
 		(at 159.4 122.4)
 		(descr "Through hole straight pin header, 1x06, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x06 2.54mm single row")
-		(property "Reference" "CSQDJ3"
+		(property "Reference" "CSDJ3"
 			(at 0 -2.38 0)
 			(layer "F.SilkS")
 			(hide yes)
@@ -21728,7 +21728,7 @@
 		(at 159.2 115.8 90)
 		(descr "Molex KK 396 Interconnect System, old/engineering part number: 5273-05A example for new part number: 09-65-2058, 5 Pins (https://www.molex.com/pdm_docs/sd/009652028_sd.pdf), generated with kicad-footprint-generator")
 		(tags "connector Molex KK-396 vertical")
-		(property "Reference" "MCRJ1"
+		(property "Reference" "CSDJ2"
 			(at 7.92 -6.8 90)
 			(layer "F.SilkS")
 			(hide yes)
@@ -27674,7 +27674,7 @@
 		(at 159.4 139.8)
 		(descr "Through hole straight pin header, 1x05, 2.54mm pitch, single row")
 		(tags "Through hole pin header THT 1x05 2.54mm single row")
-		(property "Reference" "CSQD - J1"
+		(property "Reference" "CSDJ1"
 			(at 0 -2.38 180)
 			(layer "F.SilkS" knockout)
 			(hide yes)
@@ -29140,7 +29140,7 @@
 			(justify right bottom)
 		)
 	)
-	(gr_text "J1 - DATA"
+	(gr_text "CSD J1 - DATA"
 		(at 154.6 144.88 90)
 		(layer "F.SilkS")
 		(uuid "03e471b0-0495-469f-8a15-e3d2feb03900")
@@ -30888,7 +30888,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "J3 - MUSIC"
+	(gr_text "CSD J3 - MUSIC"
 		(at 154.608358 128.75 90)
 		(layer "F.SilkS")
 		(uuid "f23c01e3-913c-4ee8-b867-c9c98c824069")
