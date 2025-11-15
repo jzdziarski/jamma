@@ -11394,7 +11394,7 @@
 		(at 128.565 119.812175)
 		(descr "Resistor, Axial_DIN0204 series, Axial, Horizontal, pin pitch=7.62mm, 0.167W, length*diameter=3.6*1.6mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0204 series Axial Horizontal pin pitch 7.62mm 0.167W length 3.6mm diameter 1.6mm")
-		(property "Reference" "R3"
+		(property "Reference" "R2"
 			(at 9.685802 0 0)
 			(layer "F.SilkS")
 			(uuid "1395edea-73f5-49f0-85a2-a7523ef4f645")
@@ -11574,7 +11574,7 @@
 		(at 136.135 134 180)
 		(descr "Resistor, Axial_DIN0204 series, Axial, Horizontal, pin pitch=7.62mm, 0.167W, length*diameter=3.6*1.6mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0204 series Axial Horizontal pin pitch 7.62mm 0.167W length 3.6mm diameter 1.6mm")
-		(property "Reference" "R16"
+		(property "Reference" "R1"
 			(at 3.735 -2 0)
 			(layer "F.SilkS")
 			(uuid "7071bb6d-f57b-42ab-a2b2-b3db31702a79")
@@ -16164,7 +16164,7 @@
 		(at 128.565 117.411224)
 		(descr "Resistor, Axial_DIN0204 series, Axial, Horizontal, pin pitch=7.62mm, 0.167W, length*diameter=3.6*1.6mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0204 series Axial Horizontal pin pitch 7.62mm 0.167W length 3.6mm diameter 1.6mm")
-		(property "Reference" "R2"
+		(property "Reference" "R3"
 			(at 9.723836 -0.074033 0)
 			(layer "F.SilkS")
 			(uuid "81842fc9-a038-4c5f-be37-28ed78732a3c")
@@ -19240,8 +19240,8 @@
 		(at 72.315 62.715 90)
 		(descr "Resistor, Axial_DIN0204 series, Axial, Horizontal, pin pitch=7.62mm, 0.167W, length*diameter=3.6*1.6mm^2, http://cdn-reichelt.de/documents/datenblatt/B400/1_4W%23YAG.pdf")
 		(tags "Resistor Axial_DIN0204 series Axial Horizontal pin pitch 7.62mm 0.167W length 3.6mm diameter 1.6mm")
-		(property "Reference" "R1"
-			(at 9.497619 0 90)
+		(property "Reference" "R16"
+			(at 9.97381 0 90)
 			(layer "F.SilkS")
 			(uuid "46455ae0-3fdf-4717-9ce9-71573c82500f")
 			(effects
