@@ -1546,7 +1546,7 @@
 		)
 		(property "Value" "NE555"
 			(at 3.81 9.95 0)
-			(layer "F.Fab")
+			(layer "F.SilkS")
 			(uuid "2ae03770-2b1d-44f8-ac7f-aaecda9a607a")
 			(effects
 				(font
@@ -7168,7 +7168,7 @@
 		)
 		(property "Value" "MC34063AP"
 			(at 3.81 9.95 90)
-			(layer "F.Fab")
+			(layer "F.SilkS")
 			(uuid "78d03d4f-9ca6-4cbf-a6ec-108ac378a432")
 			(effects
 				(font
