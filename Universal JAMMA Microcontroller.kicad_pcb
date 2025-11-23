@@ -16614,7 +16614,7 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "UNIVERSAL JAMMA MICROCONTROLLER"
+	(gr_text "UNIVERSAL JAMMA MICROCONTROLLER INTERFACE"
 		(at 149.457988 78.8 0)
 		(layer "F.SilkS")
 		(uuid "8a61bc9e-575c-460d-8e40-dcc60aa9d4bd")
@@ -16867,7 +16867,7 @@
 		)
 	)
 	(gr_text "SYNC COMBINER"
-		(at 178.565357 119.176679 0)
+		(at 178.089166 119.176679 0)
 		(layer "F.SilkS")
 		(uuid "d99e6635-4115-46a3-a217-bdf337535b7c")
 		(effects
