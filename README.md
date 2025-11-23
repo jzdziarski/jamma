@@ -12,4 +12,4 @@ For non-commercial educational use only
 |Williams System	|*|WILLIAMS_REV_0|Release|
 |Universal Edge	|*|UNIVERSAL_EDGE|Release|
 |Universal Interface|*|UNIVERSAL_INTERFACE|Release|
-|Universal CHAMMA|*|UNIVERSAL_CHAMMA|Untested|
+|Universal Microcontroller|*|UNIVERSAL_MICROCONTROLLER|Template|
