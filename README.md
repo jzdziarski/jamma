@@ -11,6 +11,7 @@ For non-commercial educational use only
 |Midway MCR II	|TRON|TRON_REV_0|Release|
 |Midway MCR II	|TRON|TRON_REV_1|Release|
 |Williams System	|*|WILLIAMS_REV_0|Release|
+|Williams System        |*|WILLIAMS_REV_1|Development|
 |Universal Edge	|*|UNIVERSAL_EDGE|Release|
 |Universal Interface|*|UNIVERSAL_INTERFACE|Release|
 |Universal Microcontroller|*|UNIVERSAL_MICROCONTROLLER|Template|
