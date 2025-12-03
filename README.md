@@ -15,4 +15,5 @@ For non-commercial educational use only
 |Williams System        |*|WILLIAMS_REV_1|Development|
 |Universal Edge	|*|UNIVERSAL_EDGE|Release|
 |Universal Interface|*|UNIVERSAL_INTERFACE|Release|
-|Universal Microcontroller|*|UNIVERSAL_MICROCONTROLLER|Template|
+|Universal Microcontroller Interface|*|UNIVERSAL_MICROCONTROLLER|Template|
+|Universal Microcontroller Adapter|*|UNIVERSAL_MICROCONTROLLER_ADAPTER|Template|
