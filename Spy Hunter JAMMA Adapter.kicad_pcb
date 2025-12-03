@@ -28351,7 +28351,7 @@
 		(uuid "89f224d3-0408-41aa-8539-a63535ff8a77")
 	)
 	(gr_line
-		(start 165.4 153)
+		(start 165.8 153)
 		(end 149 153)
 		(stroke
 			(width 0.05)
@@ -28362,7 +28362,7 @@
 	)
 	(gr_line
 		(start 149 96.4)
-		(end 165.4 96.4)
+		(end 165.8 96.4)
 		(stroke
 			(width 0.05)
 			(type solid)
@@ -28371,8 +28371,8 @@
 		(uuid "abc133cf-ff94-4e68-ab87-d18799b0e40d")
 	)
 	(gr_line
-		(start 165.4 96.4)
-		(end 165.4 153)
+		(start 165.8 96.4)
+		(end 165.8 153)
 		(stroke
 			(width 0.05)
 			(type solid)
