@@ -2214,8 +2214,8 @@
 			(uuid "a7871900-27da-41ad-928c-a3589dca2b28")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -2382,8 +2382,8 @@
 			(uuid "4fe82cdf-8f5f-40a3-9930-c5e1e9faac91")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -3481,8 +3481,8 @@
 			(uuid "9888585b-ac4e-4217-a72a-7c43a1953850")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -4493,8 +4493,8 @@
 			(uuid "44f59405-4f9a-4590-9e98-04e93d114b5d")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -5243,8 +5243,8 @@
 			(uuid "9861375c-4efe-4f75-b4de-6e9be9880555")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -5571,8 +5571,8 @@
 			(uuid "970bb017-d3f7-4a6d-8c11-0a4702eb3d97")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
@@ -7612,8 +7612,8 @@
 			(uuid "50d0a9b8-97ba-4e37-b122-8402d1bc3169")
 			(effects
 				(font
-					(size 1 1)
-					(thickness 0.15)
+					(size 0.72 0.72)
+					(thickness 0.108)
 				)
 			)
 		)
