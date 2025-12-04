@@ -6274,6 +6274,7 @@
 		(property "Value" "DIP-14_W7.62mm"
 			(at 3.81 17.57 0)
 			(layer "F.Fab")
+			(hide yes)
 			(uuid "6b851c2d-8c58-4a34-ae5a-6a091c9550fb")
 			(effects
 				(font
