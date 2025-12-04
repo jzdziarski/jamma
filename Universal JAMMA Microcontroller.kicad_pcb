@@ -12331,7 +12331,7 @@
 				)
 			)
 		)
-		(property "Value" "152"
+		(property "Value" "2A152J"
 			(at 2.5 0 90)
 			(layer "F.SilkS")
 			(uuid "e38c743f-c509-4a60-acc7-b28655642391")
