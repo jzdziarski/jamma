@@ -1196,14 +1196,15 @@
 				)
 			)
 		)
-		(property "Value" "152"
+		(property "Value" "2A152J"
 			(at 3.75 0 90)
 			(layer "F.SilkS")
 			(uuid "da8de340-70ca-48a5-9fa6-922882653a05")
 			(effects
 				(font
-					(size 0.72 0.72)
-					(thickness 0.108)
+					(size 0.6 0.6)
+					(thickness 0.1)
+					(bold yes)
 				)
 			)
 		)
@@ -15091,8 +15092,9 @@
 			(uuid "1d8b0eaf-4518-43ba-ab8b-fdcb4a3410dc")
 			(effects
 				(font
-					(size 0.72 0.72)
-					(thickness 0.108)
+					(size 0.6 0.6)
+					(thickness 0.1)
+					(bold yes)
 				)
 			)
 		)
