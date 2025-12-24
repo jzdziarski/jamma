@@ -15490,7 +15490,7 @@
 		)
 	)
 	(gr_text "10v"
-		(at 132.6 114.6 0)
+		(at 132.6 114.4 0)
 		(layer "F.SilkS")
 		(uuid "1e0bb0c2-0051-458f-8bdf-664dfe603430")
 		(effects
@@ -15501,7 +15501,7 @@
 		)
 	)
 	(gr_text "1A"
-		(at 111.2 131.372616 0)
+		(at 111.2 131.2 0)
 		(layer "F.SilkS")
 		(uuid "1e13b891-b103-4654-a7ff-bc2348ea9292")
 		(effects
@@ -15581,6 +15581,17 @@
 				(thickness 0.1)
 			)
 			(justify left bottom)
+		)
+	)
+	(gr_text "10v"
+		(at 169.6 107.112376 90)
+		(layer "F.SilkS")
+		(uuid "45bbea8e-d028-4cc2-a93b-d17cd84e8039")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.1)
+			)
 		)
 	)
 	(gr_text "+5V"
@@ -15740,7 +15751,7 @@
 		)
 	)
 	(gr_text "16v"
-		(at 153.05 131.372616 0)
+		(at 153.05 131.2 0)
 		(layer "F.SilkS")
 		(uuid "a2401844-c2e6-42e5-b6d2-75c07147a857")
 		(effects
@@ -15847,7 +15858,7 @@
 		)
 	)
 	(gr_text "10v"
-		(at 155 113.48417 0)
+		(at 155 113.4 0)
 		(layer "F.SilkS")
 		(uuid "c9d3316f-5c19-4972-8315-1c9134116043")
 		(effects
@@ -15930,7 +15941,7 @@
 		)
 	)
 	(gr_text "16v"
-		(at 119.45 131.372616 0)
+		(at 119.45 131.2 0)
 		(layer "F.SilkS")
 		(uuid "da1d6dd6-c206-436c-a245-8be719806c82")
 		(effects
