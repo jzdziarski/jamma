@@ -21770,8 +21770,8 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "LEVEL DOWN"
-		(at 147.345904 79.333334 90)
+	(gr_text "LEVEL DN"
+		(at 147.345904 77.142858 90)
 		(layer "F.SilkS")
 		(uuid "50c7e5db-6ec7-49d6-97a8-f7446b6de25e")
 		(effects
