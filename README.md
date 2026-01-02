@@ -6,7 +6,7 @@ For non-commercial educational use only
 |-------------------|------------|-------------------------|----------|  
 |Atari System I	|RoadBlasters|ROADBLASTERS_REV_0|Release|
 |Atari System I |RoadBlasters|ROADBLASTERS_REV_1|Development|
-|Atari System|*|ATARI_REV_0|Testing|
+|Atari System I/II/68K |*|ATARI_REV_0|Release|
 |Midway MCR III	|Spy Hunter|SPY_HUNTER_REV_0|Release|
 |Midway MCR III	|Spy Hunter|SPY_HUNTER_REV_1|Release|
 |Midway MCR II	|TRON|TRON_REV_0|Release|
