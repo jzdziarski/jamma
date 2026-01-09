@@ -29761,17 +29761,6 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "+"
-		(at 140.365 144.865 90)
-		(layer "F.SilkS")
-		(uuid "bc1ab801-2cec-4882-abde-912fb9175d61")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
 	(gr_text "VS"
 		(at 63.91675 62.96175 0)
 		(layer "F.SilkS")
