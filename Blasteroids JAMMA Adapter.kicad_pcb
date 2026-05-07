@@ -8,7 +8,7 @@
 	)
 	(paper "A4")
 	(title_block
-		(title "RoadBlasters JAMMA Adapter")
+		(title "Blasteroids JAMMA Adapter")
 	)
 	(layers
 		(0 "F.Cu" signal)
