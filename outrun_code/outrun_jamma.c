@@ -5,18 +5,16 @@
  * This firmware controls the ATMEGA328P microcontroller to interface
  * between JAMMA arcade inputs and analog voltage outputs via MCP4902 DAC.
  * 
- * CORRECTED SPECIFICATION:
  * - B1 (Accelerate): VOUTA adjustable 0-5V with UP/DOWN when pressed
- * - B2 (Shift): Single digital output PB2, HIGH or LOW depending on toggle state
+ * - B2 (Shift): Single digital output PB2, HIGH or LOW depending on state
  * - B3 (Brake): Digital output PB1, HIGH or LOW depending on button state
  * - LEFT/RIGHT: Adjust VOUTB (steering voltage 0-5V)
  * 
  * Hardware:
  * - ATMEGA328P @ 8MHz INTERNAL CLOCK (no external crystal required)
  * - MCP4902 Dual 8-bit DAC via SPI (bit-banged on PB3/PB4/PB5)
- * - 7 active-low input buttons from JAMMA adapter
  * 
- * Pin Assignments (VERIFIED FOR YOUR PCB):
+ * Pin Assignments:
  * - Inputs (active-low with internal pull-ups):
  *   PD2 (Pin 4)  - B1 (Accelerate) - enables adjustable VOUTA
  *   PD3 (Pin 5)  - B2 (Shift toggle)
@@ -29,9 +27,9 @@
  * - Outputs:
  *   PB1 (Pin 15) - B3_OUT (Brake digital output, HIGH or LOW)
  *   PB2 (Pin 16) - B2_OUT (Shift output, HIGH or LOW depending on toggle)
- *   PB3 (Pin 17) - MCP4902 CS (chip select, active low) ← VERIFIED
- *   PB4 (Pin 18) - MCP4902 SDI (SPI data output to DAC) ← VERIFIED
- *   PB5 (Pin 19) - MCP4902 SCK (SPI clock) ← VERIFIED
+ *   PB3 (Pin 17) - MCP4902 CS (chip select, active low)
+ *   PB4 (Pin 18) - MCP4902 SDI (SPI data output to DAC)
+ *   PB5 (Pin 19) - MCP4902 SCK (SPI clock) 
  * 
  * - DAC Outputs:
  *   VOUTA (Pin 14 on MCP4902) - Accelerator voltage (0-5V, adjustable with UP/DOWN when B1 pressed)
@@ -66,7 +64,7 @@
 #define MS_TO_LOOPS(ms)         ((uint32_t)((ms) / LOOP_TIME_MS))
 
 /*============================================================================
- * Pin Definitions (VERIFIED FOR YOUR PCB WIRING)
+ * Pin Definitions 
  *===========================================================================*/
 
 // Input pins (active-low) - accessed directly via PIND/PINB
@@ -81,9 +79,9 @@
 // Output pins
 #define B3_OUT_PIN_BIT          PB1     // Brake output - Pin 15 (OC1A)
 #define B2_OUT_PIN_BIT          PB2     // Shift output - Pin 16 (SS/OC1B)
-#define MCP_CS_PIN_BIT          PB3     // DAC CS - Pin 17 → MCP4902 Pin 3 (VERIFIED)
-#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 → MCP4902 Pin 5 (VERIFIED)
-#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 → MCP4902 Pin 4 (VERIFIED)
+#define MCP_CS_PIN_BIT          PB3     // DAC CS - Pin 17 → MCP4902 Pin 3
+#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 → MCP4902 Pin 5 
+#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 → MCP4902 Pin 4 
 
 /*============================================================================
  * Global Variables (8-BIT DAC VALUES)
@@ -198,7 +196,7 @@ void gpio_init(void) {
     DDRB |= (1 << PB2);   // B2_OUT (Shift) - Pin 16
     PORTB &= ~(1 << PB2); // Start LOW (default state)
     
-    // SPI pins for MCP4902 (VERIFIED WIRING):
+    // SPI pins for MCP4902:
     DDRB |= (1 << PB3);   // CS - output, active low (Pin 17 → MCP4902 Pin 3)
     PORTB |= (1 << PB3);  // CS high (deselect DAC initially)
     
