@@ -8,7 +8,7 @@
 	)
 	(paper "A4")
 	(title_block
-		(title "Universal JAMMA Microcontroller Adapter")
+		(title "Outrun JAMMA Adapter")
 	)
 	(layers
 		(0 "F.Cu" signal)
