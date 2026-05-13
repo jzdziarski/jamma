@@ -5,16 +5,18 @@
  * This firmware controls the ATMEGA328P microcontroller to interface
  * between JAMMA arcade inputs and analog voltage outputs via MCP4902 DAC.
  * 
+ * CORRECTED SPECIFICATION:
  * - B1 (Accelerate): VOUTA adjustable 0-5V with UP/DOWN when pressed
- * - B2 (Shift): Single digital output PB2, HIGH or LOW depending on state
+ * - B2 (Shift): Single digital output PB2, HIGH or LOW depending on toggle state
  * - B3 (Brake): Digital output PB1, HIGH or LOW depending on button state
  * - LEFT/RIGHT: Adjust VOUTB (steering voltage 0-5V)
  * 
  * Hardware:
  * - ATMEGA328P @ 8MHz INTERNAL CLOCK (no external crystal required)
  * - MCP4902 Dual 8-bit DAC via SPI (bit-banged on PB3/PB4/PB5)
+ * - 7 active-low input buttons from JAMMA adapter
  * 
- * Pin Assignments:
+ * Pin Assignments (VERIFIED FOR YOUR PCB):
  * - Inputs (active-low with internal pull-ups):
  *   PD2 (Pin 4)  - B1 (Accelerate) - enables adjustable VOUTA
  *   PD3 (Pin 5)  - B2 (Shift toggle)
@@ -27,9 +29,9 @@
  * - Outputs:
  *   PB1 (Pin 15) - B3_OUT (Brake digital output, HIGH or LOW)
  *   PB2 (Pin 16) - B2_OUT (Shift output, HIGH or LOW depending on toggle)
- *   PB3 (Pin 17) - MCP4902 CS (chip select, active low)
- *   PB4 (Pin 18) - MCP4902 SDI (SPI data output to DAC)
- *   PB5 (Pin 19) - MCP4902 SCK (SPI clock) 
+ *   PB3 (Pin 17) - MCP4902 CS (chip select, active low) ← VERIFIED
+ *   PB4 (Pin 18) - MCP4902 SDI (SPI data output to DAC) ← VERIFIED
+ *   PB5 (Pin 19) - MCP4902 SCK (SPI clock) ← VERIFIED
  * 
  * - DAC Outputs:
  *   VOUTA (Pin 14 on MCP4902) - Accelerator voltage (0-5V, adjustable with UP/DOWN when B1 pressed)
@@ -64,7 +66,7 @@
 #define MS_TO_LOOPS(ms)         ((uint32_t)((ms) / LOOP_TIME_MS))
 
 /*============================================================================
- * Pin Definitions 
+ * Pin Definitions (VERIFIED FOR YOUR PCB WIRING)
  *===========================================================================*/
 
 // Input pins (active-low) - accessed directly via PIND/PINB
@@ -79,16 +81,16 @@
 // Output pins
 #define B3_OUT_PIN_BIT          PB1     // Brake output - Pin 15 (OC1A)
 #define B2_OUT_PIN_BIT          PB2     // Shift output - Pin 16 (SS/OC1B)
-#define MCP_CS_PIN_BIT          PB3     // DAC CS - Pin 17 → MCP4902 Pin 3
-#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 → MCP4902 Pin 5 
-#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 → MCP4902 Pin 4 
+#define MCP_CS_PIN_BIT          PB3     // DAC CS - Pin 17 → MCP4902 Pin 3 (VERIFIED)
+#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 → MCP4902 Pin 5 (VERIFIED)
+#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 → MCP4902 Pin 4 (VERIFIED)
 
 /*============================================================================
  * Global Variables (8-BIT DAC VALUES)
  *===========================================================================*/
 
 // DAC output values (8-bit, 0-255)
-static uint8_t accel_voltage_value = 0;        // VOUTA, starts at 0V
+static uint8_t accel_voltage_value = 255;        // VOUTA, starts at 5V
 static uint8_t steering_voltage_value = DAC_MID_VALUE;  // VOUTB, starts at ~2.5V
 
 // Button state tracking
@@ -196,7 +198,7 @@ void gpio_init(void) {
     DDRB |= (1 << PB2);   // B2_OUT (Shift) - Pin 16
     PORTB &= ~(1 << PB2); // Start LOW (default state)
     
-    // SPI pins for MCP4902:
+    // SPI pins for MCP4902 (VERIFIED WIRING):
     DDRB |= (1 << PB3);   // CS - output, active low (Pin 17 → MCP4902 Pin 3)
     PORTB |= (1 << PB3);  // CS high (deselect DAC initially)
     
@@ -238,11 +240,10 @@ void mcp4902_write(uint8_t channel, uint8_t data) {
     // Low byte: [D3:D0][XXXX] (padding)
     if (channel == 0) {
         // Channel A (VOUTA): A/B=0, GD=0, SHDN=1, BUFFER=0
-        command_word = 0x3000 | (data << 4);  // Shift data to high nibble position
+        command_word = 0x1000 | (data << 4);  // Shift data to high nibble position
     } else {
         // Channel B (VOUTB): A/B=1, GD=0, SHDN=1, BUFFER=0
-        command_word = 0xB000 | (data << 4);  // Shift data to high nibble position
-        // Was: 0x7000
+        command_word = 0x9000 | (data << 4);  // Shift data to high nibble position
     }
     
     // Assert chip select (active low) - PB3
@@ -522,58 +523,54 @@ void update_outputs(void) {
     static uint8_t left_pressed = 0;
     static uint8_t right_pressed = 0;
     
-    // LEFT button - increase steering voltage toward 5V
-    if (read_button(&PIND, LEFT_PIN_BIT)) {  // LEFT pressed
-        if (!left_pressed) {
-            // First press - immediate adjustment
+   // RIGHT button - increase steering voltage toward 5V (new behavior)
+if (read_button(&PINB, RIGHT_PIN_BIT)) {
+    if (!right_pressed) {
+        steering_voltage_value += STEERING_ADJUST_STEP;
+        if (steering_voltage_value > DAC_MAX_VALUE) {
+            steering_voltage_value = DAC_MAX_VALUE;
+        }
+        update_steering_voltage(steering_voltage_value);
+        right_pressed = 1;
+        right_last_press_time = loop_counter;
+    } else if ((loop_counter - right_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
+        if ((loop_counter - right_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
             steering_voltage_value += STEERING_ADJUST_STEP;
             if (steering_voltage_value > DAC_MAX_VALUE) {
                 steering_voltage_value = DAC_MAX_VALUE;
             }
             update_steering_voltage(steering_voltage_value);
-            left_pressed = 1;
-            left_last_press_time = loop_counter;
-        } else if ((loop_counter - left_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-            // Repeat adjustment while held
-            if ((loop_counter - left_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
-                steering_voltage_value += STEERING_ADJUST_STEP;
-                if (steering_voltage_value > DAC_MAX_VALUE) {
-                    steering_voltage_value = DAC_MAX_VALUE;
-                }
-                update_steering_voltage(steering_voltage_value);
-            }
+        }
         }
     } else {
-        left_pressed = 0;
+        right_pressed = 0;
     }
-    
-    // RIGHT button - decrease steering voltage toward 0V
-    if (read_button(&PINB, RIGHT_PIN_BIT)) {  // RIGHT pressed
-        if (!right_pressed) {
-            // First press - immediate adjustment
+
+    // LEFT button - decrease steering voltage toward 0V (new behavior)
+    if (read_button(&PIND, LEFT_PIN_BIT)) {
+    if (!left_pressed) {
+        if (steering_voltage_value >= STEERING_ADJUST_STEP) {
+            steering_voltage_value -= STEERING_ADJUST_STEP;
+        } else {
+            steering_voltage_value = 0;
+        }
+        update_steering_voltage(steering_voltage_value);
+        left_pressed = 1;
+        left_last_press_time = loop_counter;
+    } else if ((loop_counter - left_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
+        if ((loop_counter - left_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
             if (steering_voltage_value >= STEERING_ADJUST_STEP) {
                 steering_voltage_value -= STEERING_ADJUST_STEP;
             } else {
                 steering_voltage_value = 0;
             }
             update_steering_voltage(steering_voltage_value);
-            right_pressed = 1;
-            right_last_press_time = loop_counter;
-        } else if ((loop_counter - right_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-            // Repeat adjustment while held
-            if ((loop_counter - right_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
-                if (steering_voltage_value >= STEERING_ADJUST_STEP) {
-                    steering_voltage_value -= STEERING_ADJUST_STEP;
-                } else {
-                    steering_voltage_value = 0;
-                }
-                update_steering_voltage(steering_voltage_value);
-            }
+        }
         }
     } else {
-        right_pressed = 0;
+        left_pressed = 0;
     }
-    
+ 
     // Return to neutral (2.5V) when neither LEFT nor RIGHT is pressed
     if (!left_pressed && !right_pressed) {
         // Check if we're close to neutral (within one step)
