@@ -240,10 +240,10 @@ void mcp4902_write(uint8_t channel, uint8_t data) {
     // Low byte: [D3:D0][XXXX] (padding)
     if (channel == 0) {
         // Channel A (VOUTA): A/B=0, GD=0, SHDN=1, BUFFER=0
-        command_word = 0x1000 | (data << 4);  // Shift data to high nibble position
+        command_word = 0x3000 | (data << 4);  // Shift data to high nibble position
     } else {
         // Channel B (VOUTB): A/B=1, GD=0, SHDN=1, BUFFER=0
-        command_word = 0x9000 | (data << 4);  // Shift data to high nibble position
+        command_word = 0xB000 | (data << 4);  // Shift data to high nibble position
     }
     
     // Assert chip select (active low) - PB3
