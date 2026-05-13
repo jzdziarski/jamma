@@ -11985,6 +11985,30 @@
 			(justify left bottom)
 		)
 	)
+	(gr_text "1"
+		(at 156.6 90.2 0)
+		(layer "F.SilkS")
+		(uuid "427da7b3-c9b4-41d8-96c1-725b373206f8")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "1"
+		(at 161.6 84.6 0)
+		(layer "F.SilkS")
+		(uuid "3be05b0f-be9a-47d1-a299-5866f0915be5")
+		(effects
+			(font
+				(size 0.8 0.8)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
 	(gr_text "SEGA Outrun® JAMMA Adapter\nOutrun is a Registered Trademark of SEGA Corporation"
 		(at 95.4 140 0)
 		(layer "F.SilkS")
