@@ -97,7 +97,7 @@ full_build: fuses flash
 
 # Clean build artifacts
 clean:
-	rm -f $(OBJ) $(PROJECT).elf $(PROJECT).hex $(PROJECT)eep.hex
+	rm -f $(OBJ) $(PROJECT).d $(PROJECT).elf $(PROJECT).hex $(PROJECT)eep.hex
 
 # Clean all including hex files
 distclean: clean

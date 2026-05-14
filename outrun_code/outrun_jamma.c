@@ -1,483 +1,445 @@
-/**
+/*
  * @file outrun_jamma.c
- * @brief Sega Outrun Rev. B to JAMMA Adapter Firmware (8MHz Internal Clock)
+ * @brief Sega Outrun Rev. B to JAMMA Adapter Firmware
  * 
  * This firmware controls the ATMEGA328P microcontroller to interface
- * between JAMMA arcade inputs and analog voltage outputs via MCP4902 DAC.
+ * between JAMMA inputs and analog voltage outputs via MCP4902 DAC.
  * 
- * CORRECTED SPECIFICATION:
- * - B1 (Accelerate): VOUTA adjustable 0-5V with UP/DOWN when pressed
- * - B2 (Shift): Single digital output PB2, HIGH or LOW depending on toggle state
- * - B3 (Brake): Digital output PB1, HIGH or LOW depending on button state
- * - LEFT/RIGHT: Adjust VOUTB (steering voltage 0-5V)
- * 
- * Hardware:
- * - ATMEGA328P @ 8MHz INTERNAL CLOCK (no external crystal required)
- * - MCP4902 Dual 8-bit DAC via SPI (bit-banged on PB3/PB4/PB5)
- * - 7 active-low input buttons from JAMMA adapter
- * 
- * Pin Assignments (VERIFIED FOR YOUR PCB):
- * - Inputs (active-low with internal pull-ups):
- *   PD2 (Pin 4)  - B1 (Accelerate) - enables adjustable VOUTA
+ * Pin Assignments:
+ * Inputs (active-low with internal pull-ups):
+ *   PD2 (Pin 4)  - B1 (Accelerate), enabled adjustable VOUTA
  *   PD3 (Pin 5)  - B2 (Shift toggle)
- *   PD4 (Pin 6)  - B3 (Brake) - digital HIGH/LOW output
- *   PD5 (Pin 11) - UP (increase accelerator voltage)
- *   PD6 (Pin 12) - DOWN (decrease accelerator voltage)
- *   PD7 (Pin 13) - LEFT (increase steering voltage)
- *   PB0 (Pin 14) - RIGHT (decrease steering voltage)
+ *   PD4 (Pin 6)  - B3 (Brake), digital H/L output
+ *   PD5 (Pin 11) - UP, Increases accelerator voltage
+ *   PD6 (Pin 12) - DOWN, Decreases accelerator voltage
+ *   PD7 (Pin 13) - LEFT, Decreases steering voltage
+ *   PB0 (Pin 14) - RIGHT, Increases steering voltage
  * 
- * - Outputs:
- *   PB1 (Pin 15) - B3_OUT (Brake digital output, HIGH or LOW)
- *   PB2 (Pin 16) - B2_OUT (Shift output, HIGH or LOW depending on toggle)
- *   PB3 (Pin 17) - MCP4902 CS (chip select, active low) ← VERIFIED
- *   PB4 (Pin 18) - MCP4902 SDI (SPI data output to DAC) ← VERIFIED
- *   PB5 (Pin 19) - MCP4902 SCK (SPI clock) ← VERIFIED
+ * Outputs:
+ *   PB1 (Pin 15) - B3_OUT (Brake, HIGH or LOW)
+ *   PB2 (Pin 16) - B2_OUT (Shift output, HIGH or LOW, Latched)
+ *   PB3 (Pin 17) - MCP4902 CS
+ *   PB4 (Pin 18) - MCP4902 SDI
+ *   PB5 (Pin 19) - MCP4902 SCK
  * 
- * - DAC Outputs:
- *   VOUTA (Pin 14 on MCP4902) - Accelerator voltage (0-5V, adjustable with UP/DOWN when B1 pressed)
- *   VOUTB (Pin 10 on MCP4902) - Steering voltage (0-5V, adjustable with LEFT/RIGHT)
+ * DAC Outputs:
+ *   VOUTA (Pin 14 on MCP4902), Accelerator voltage
+ *   VOUTB (Pin 10 on MCP4902), Steering voltage
  */
 
 #define F_CPU 8000000UL
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include "outrun_jamma.h"
 
-/*============================================================================
- * Configuration Constants (8-BIT DAC)
- *===========================================================================*/
-
-// Button debounce timing (milliseconds)
 #define DEBOUNCE_DELAY_MS       20
 #define BUTTON_REPEAT_DELAY_MS  300
 #define BUTTON_REPEAT_RATE_MS   50
 
-// DAC value ranges (8-bit: 0-255)
-#define DAC_MIN_VALUE           0
-#define DAC_MAX_VALUE           255     // MCP4902 is 8-bit
-#define DAC_MID_VALUE           127     // ~2.5V (half of 255)
+/*
+ * Accelerator Pedal DAC Constants
+ * Voltage step size (~19.6mV per step)
+ * From manual: Valid pedal ranges 32-144
+ */
 
-// Voltage adjustment step size (~19.6mV per step for 8-bit DAC)
-#define ACCEL_ADJUST_STEP       5       // ~98mV per step for responsive control
-#define STEERING_ADJUST_STEP    2       // ~39mV per step for smooth steering
+#define ACCEL_ADJUST_STEP         5    /* ~98mV per step */
+#define ACCEL_MIN_VALUE           32
+#define ACCEL_MAX_VALUE           144
 
-// Timing conversion: loop runs at ~100us intervals (from _delay_us(100))
-#define LOOP_TIME_MS            0.1     // Each loop iteration is ~0.1ms
-#define MS_TO_LOOPS(ms)         ((uint32_t)((ms) / LOOP_TIME_MS))
+/*
+ * Steering DAC Constants
+ * Voltage step size (~19.6mV per step)
+ * From manual: Valid steering ranges 51-203, Zeroed @ 128
+ */
 
-/*============================================================================
- * Pin Definitions (VERIFIED FOR YOUR PCB WIRING)
- *===========================================================================*/
+#define STEERING_ADJUST_STEP    2       /* ~39mV per step for smooth steering */
+#define STEERING_MIN_VALUE      51
+#define STEERING_MAX_VALUE      203
+#define STEERING_MID_VALUE	128
 
-// Input pins (active-low) - accessed directly via PIND/PINB
-#define B1_PIN_BIT              PD2     // Accelerate - Pin 4 (INT0)
-#define B2_PIN_BIT              PD3     // Shift toggle - Pin 5 (INT1)
-#define B3_PIN_BIT              PD4     // Brake - Pin 6 (XCK/T0)
+/* Loop Timing; Loop runs at 100us intervals per _delay_us(100) */
+#define LOOP_TIME_MS    0.1
+#define MS_TO_LOOPS(ms) ((uint32_t)((ms)/LOOP_TIME_MS))
+
+/*
+ * Pin Definitions
+ */
+
+/* Input pins, Active-Low */
+#define B1_PIN_BIT              PD2     // Accelerate     - Pin 4  (INT0)
+#define B2_PIN_BIT              PD3     // Shift toggle   - Pin 5  (INT1)
+#define B3_PIN_BIT              PD4     // Brake          - Pin 6  (XCK/T0)
 #define UP_PIN_BIT              PD5     // Increase accel - Pin 11 (T1)
 #define DOWN_PIN_BIT            PD6     // Decrease accel - Pin 12 (AIN0)
 #define LEFT_PIN_BIT            PD7     // Increase steer - Pin 13 (AIN1)
 #define RIGHT_PIN_BIT           PB0     // Decrease steer - Pin 14 (ICP1)
 
-// Output pins
+/* Output pins */
 #define B3_OUT_PIN_BIT          PB1     // Brake output - Pin 15 (OC1A)
 #define B2_OUT_PIN_BIT          PB2     // Shift output - Pin 16 (SS/OC1B)
-#define MCP_CS_PIN_BIT          PB3     // DAC CS - Pin 17 → MCP4902 Pin 3 (VERIFIED)
-#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 → MCP4902 Pin 5 (VERIFIED)
-#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 → MCP4902 Pin 4 (VERIFIED)
+#define MCP_CS_PIN_BIT          PB3     // DAC CS  - Pin 17 to MCP4902 Pin 3
+#define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 to MCP4902 Pin 5
+#define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 to MCP4902 Pin 4
 
-/*============================================================================
- * Global Variables (8-BIT DAC VALUES)
- *===========================================================================*/
+/* Globals */
+static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;
+static uint8_t steering_voltage_value = STEERING_MID_VALUE;
+static uint8_t b2_toggle_state        = 0;                  // Shift latch (L)
+static uint8_t brake_pressed_state    = 0;                  // Brake (L)
 
-// DAC output values (8-bit, 0-255)
-static uint8_t accel_voltage_value = 255;        // VOUTA, starts at 5V
-static uint8_t steering_voltage_value = DAC_MID_VALUE;  // VOUTB, starts at ~2.5V
-
-// Button state tracking
-static uint8_t b2_toggle_state = 0;             // Shift toggle latch (0=LOW, 1=HIGH)
-static uint8_t brake_pressed_state = 0;         // Brake button state (0 or 1)
-
-// Timing variables for button repeat
-static uint32_t up_last_press_time = 0;
-static uint32_t down_last_press_time = 0;
-static uint32_t left_last_press_time = 0;
+/* Globals for button repeat timing */
+static uint32_t up_last_press_time    = 0;
+static uint32_t down_last_press_time  = 0;
+static uint32_t left_last_press_time  = 0;
 static uint32_t right_last_press_time = 0;
 
-// Loop iteration counter (each iteration is ~100us)
 static uint32_t loop_counter = 0;
 
-/*============================================================================
- * Function Prototypes
- *===========================================================================*/
-
-void system_init(void);
-void gpio_init(void);
-void spi_init(void);
-void mcp4902_write(uint8_t channel, uint8_t data);
-void update_accel_voltage(uint8_t value);
-void update_steering_voltage(uint8_t value);
-uint8_t read_button(volatile uint8_t *port, uint8_t bit);
-void set_brake_output(uint8_t state);
-void set_shift_output(uint8_t state);
-void update_outputs(void);
-
-/*============================================================================
- * Main Function
- *===========================================================================*/
-
-int main(void) {
-    // Power-on delay to ensure JAMMA power rails are stable
+int main(void)
+{
+    /* Power-on delay, ensure JAMMA power rails are stabile */
     _delay_ms(500);
     
-    // Initialize system
     system_init();
     
-    // Initial DAC output update
+    /* Initialize DAC outputs */
     update_accel_voltage(accel_voltage_value);
     update_steering_voltage(steering_voltage_value);
     
-    // Main loop
+    /* Main event loop */
     while (1) {
         update_outputs();
-        
-        // Small delay to prevent CPU from running too fast (~100us per loop)
         _delay_us(100);
-        
-        // Increment loop counter for timing calculations
         loop_counter++;
     }
     
     return 0;
 }
 
-/*============================================================================
- * System Initialization
- *===========================================================================*/
-
-void system_init(void) {
+void system_init(void)
+{
     gpio_init();
     spi_init();
     
-    // Disable global interrupts - not needed for this application
+    /* Disable global interrupts (Unnecessary) */
     cli();
 }
 
-/*============================================================================
- * GPIO Initialization
- * 
- * Configures all input and output pins according to specification.
- * Inputs use internal pull-ups (active-low logic).
+/*
+ * Initialize GPIO Pins
+ * Configures all input and output pins.
+ * Inputs use internal pull-ups for active-low logic.
  * Outputs are configured as push-pull digital.
- * SPI uses bit-banged on PB3=CS, PB4=SDI, PB5=SCK.
- *===========================================================================*/
+ * SPI uses PB3=CS, PB4=SDI, PB5=SCK
+ */
 
-void gpio_init(void) {
-    // Configure input pins with internal pull-ups (active-low)
-    DDRD &= ~(1 << PD2);  // B1 input (Accelerate) - Pin 4
-    DDRD &= ~(1 << PD3);  // B2 input (Shift toggle) - Pin 5
-    DDRD &= ~(1 << PD4);  // B3 input (Brake) - Pin 6
-    DDRD &= ~(1 << PD5);  // UP input - Pin 11
-    DDRD &= ~(1 << PD6);  // DOWN input - Pin 12
-    DDRD &= ~(1 << PD7);  // LEFT input - Pin 13
+void gpio_init(void)
+{
+    /* Configure input pins with internal pull-ups for active-low */
+    DDRD &= ~(1 << PD2);  // B1 (Accelerate)   - Pin 4
+    DDRD &= ~(1 << PD3);  // B2 (Shift toggle) - Pin 5
+    DDRD &= ~(1 << PD4);  // B3 (Brake)        - Pin 6
+    DDRD &= ~(1 << PD5);  // UP                - Pin 11
+    DDRD &= ~(1 << PD6);  // DOWN              - Pin 12
+    DDRD &= ~(1 << PD7);  // LEFT              - Pin 13
+    DDRB &= ~(1 << PB0);  // RIGHT             - Pin 14
     
-    DDRB &= ~(1 << PB0);  // RIGHT input - Pin 14
+    /* Enable pull-ups */
+    PORTD |= (1 << PD2);  // B1
+    PORTD |= (1 << PD3);  // B2
+    PORTD |= (1 << PD4);  // B3
+    PORTD |= (1 << PD5);  // UP
+    PORTD |= (1 << PD6);  // DOWN
+    PORTD |= (1 << PD7);  // LEFT
+    PORTB |= (1 << PB0);  // RIGHT
     
-    PORTD |= (1 << PD2);  // Enable pull-up on B1
-    PORTD |= (1 << PD3);  // Enable pull-up on B2
-    PORTD |= (1 << PD4);  // Enable pull-up on B3
-    PORTD |= (1 << PD5);  // Enable pull-up on UP
-    PORTD |= (1 << PD6);  // Enable pull-up on DOWN
-    PORTD |= (1 << PD7);  // Enable pull-up on LEFT
-    
-    PORTB |= (1 << PB0);  // Enable pull-up on RIGHT
-    
-    // Configure output pins as push-pull digital
+    /* Configure output pins as push-pull digital */
     DDRB |= (1 << PB1);   // B3_OUT (Brake) - Pin 15
-    PORTB &= ~(1 << PB1); // Start LOW (brake not pressed)
+    PORTB &= ~(1 << PB1); // LOW (Default State)
     
     DDRB |= (1 << PB2);   // B2_OUT (Shift) - Pin 16
-    PORTB &= ~(1 << PB2); // Start LOW (default state)
+    PORTB &= ~(1 << PB2); // LOW (Default State)
     
-    // SPI pins for MCP4902 (VERIFIED WIRING):
-    DDRB |= (1 << PB3);   // CS - output, active low (Pin 17 → MCP4902 Pin 3)
-    PORTB |= (1 << PB3);  // CS high (deselect DAC initially)
+    /* Configure SPI pins for MCP4902 */
+    DDRB |= (1 << PB3);   // CS
+    PORTB |= (1 << PB3);  // CS HIGH (Initially deselect DAC)
     
-    DDRB |= (1 << PB4);   // SDI - output, SPI data (Pin 18 → MCP4902 Pin 5)
-    PORTB &= ~(1 << PB4); // Default low
+    DDRB |= (1 << PB4);   // SDI, Output for SPI Data
+    PORTB &= ~(1 << PB4); // LOW (Default State)
     
-    DDRB |= (1 << PB5);   // SCK - output, SPI clock (Pin 19 → MCP4902 Pin 4)
-    PORTB &= ~(1 << PB5); // SCK low
+    DDRB |= (1 << PB5);   // SCK, Output for SPI Clock
+    PORTB &= ~(1 << PB5); // LOW (Default State)
 }
 
-/*============================================================================
- * SPI Initialization
- * 
- * Disables hardware SPI - we use bit-banged on PB3/PB4/PB5 instead.
- *===========================================================================*/
+/* Disables hardware SPI in favor of PB3/PB4/PB5 */
 
-void spi_init(void) {
-    // Disable hardware SPI - using bit-banged on PB3/PB4/PB5
+void spi_init(void)
+{
     SPCR = 0;
     SPSR = 0;
 }
 
-/*============================================================================
- * MCP4902 DAC Write Function (8-BIT, BIT-BANGED SPI)
+/*
+ * MCP4902 DAC Write Function
+ * Sends command and 8-bit data to MCP4902 via SW SPI.
+ * PB3=CS, PB4=SDI, PB5=SCK
  * 
- * Sends command and 8-bit data to the MCP4902 via software SPI.
- * Uses PB3 for CS, PB4 for SDI (data), PB5 for SCK.
- * 
- * @param channel 0 for VOUTA, 1 for VOUTB
+ * @param CH 0 for VOUTA, CH 1 for VOUTB
  * @param data 8-bit DAC value (0-255)
- *===========================================================================*/
+ */
 
-void mcp4902_write(uint8_t channel, uint8_t data) {
-    uint8_t i;
+void mcp4902_write(uint8_t channel, uint8_t data)
+{
     uint16_t command_word;
+    uint8_t i;
     
-    // Build 16-bit command word for MCP4902 (8-bit DAC):
-    // High byte: [A/B][BUF][GA][SHDN][D7:D4]
-    // Low byte: [D3:D0][XXXX] (padding)
-    if (channel == 0) {
-        // Channel A (VOUTA): A/B=0, GD=0, SHDN=1, BUFFER=0
-        command_word = 0x3000 | (data << 4);  // Shift data to high nibble position
-    } else {
-        // Channel B (VOUTB): A/B=1, GD=0, SHDN=1, BUFFER=0
-        command_word = 0xB000 | (data << 4);  // Shift data to high nibble position
+    if (channel == 0) // VOUTA
+    {
+        command_word = 0x3000 | (data << 4);
+    } else            // VOUTB
+    {
+        command_word = 0xB000 | (data << 4);
     }
     
-    // Assert chip select (active low) - PB3
+    /* Assert CS */
     PORTB &= ~(1 << MCP_CS_PIN_BIT);
     
-    // Send 16 bits MSB first (bit-banged SPI on PB4)
-    for (i = 0; i < 16; i++) {
-        // Set SDI (PB4) based on current bit
-        if (command_word & 0x8000) {
-            PORTB |= (1 << MCP_SD_PIN_BIT);   // Set HIGH
-        } else {
-            PORTB &= ~(1 << MCP_SD_PIN_BIT);  // Set LOW
+    /* Send 16 bits MSB first */
+    for (i = 0; i < 16; i++)
+    {
+        /* Set SDI to current bit */
+        if (command_word & 0x8000)
+        {
+            PORTB |= (1 << MCP_SD_PIN_BIT);   // HIGH
+        } else
+        {
+            PORTB &= ~(1 << MCP_SD_PIN_BIT);  // LOW
         }
         
-        // Pulse SCK (PB5) - rising edge
+        /* Pulse SCK on rising edge */
         PORTB |= (1 << MCP_SCK_PIN_BIT);
         
-        // Small delay for signal stability
+        /* Stabilize signal */
         _delay_us(1);
         
-        // Falling edge of SCK
+        /* Falling edge of SCK */
         PORTB &= ~(1 << MCP_SCK_PIN_BIT);
         
-        // Shift to next bit
+        /* Shift to next bit */
         command_word <<= 1;
     }
     
-    // Deassert chip select (active low) - PB3
+    /* Deassert CS */
     PORTB |= (1 << MCP_CS_PIN_BIT);
 }
 
-/*============================================================================
- * Update Accelerator Voltage (VOUTA) - 8-BIT DAC
- * 
- * Updates the DAC channel A output with the specified voltage value.
- * When B1 is not pressed, this should be 0V (value = 0).
- * When B1 is pressed, value ranges from 0-255 (0V to 5V).
- * 
+/*
+ * Update Accelerator Pedal Voltage (VOUTA)
+ * Writes to the DAC CH A output with the specified value (0-5v) (0-255).
+ * When B1 is pressed, current accelerator value is written
+ * When B1 not pressed, ACCEL_MIN_VALUE is written
+ *
  * @param value 8-bit DAC value (0-255)
- *===========================================================================*/
+ */
 
-void update_accel_voltage(uint8_t value) {
-    // Clamp value to valid range
-    if (value > DAC_MAX_VALUE) {
-        value = DAC_MAX_VALUE;
+void update_accel_voltage(uint8_t value)
+{
+    if (value > ACCEL_MAX_VALUE)
+    {
+        value = ACCEL_MAX_VALUE;
     }
     
     accel_voltage_value = value;
     
-    // Write to MCP4902 Channel A (VOUTA - Accelerator)
-    mcp4902_write(0, value);  // Channel 0 = VOUTA
+    /* Write to MCP4902 CH 0 (VOUTA) */
+    mcp4902_write(0, value);
 }
 
-/*============================================================================
- * Update Steering Voltage (VOUTB) - 8-BIT DAC
- * 
- * Updates the DAC channel B output with the specified voltage value.
- * Default is ~2.5V (value = 127), adjustable from 0-5V (0-255).
- * 
+/*
+ * Update Steering Voltage (VOUTB)
+ * Writes to the DAC CH B output with the specified value, 0-5v (0-255).
+ * When neither L/R are pressed, STEERING_MID_VALUE is written 
+ *
  * @param value 8-bit DAC value (0-255)
- *===========================================================================*/
+ */
 
 void update_steering_voltage(uint8_t value) {
-    // Clamp value to valid range
-    if (value > DAC_MAX_VALUE) {
-        value = DAC_MAX_VALUE;
+    if (value > STEERING_MAX_VALUE)
+    {
+        value = STEERING_MAX_VALUE;
     }
     
     steering_voltage_value = value;
     
-    // Write to MCP4902 Channel B (VOUTB - Steering)
-    mcp4902_write(1, value);  // Channel 1 = VOUTB
+    /* Write to MCP4902 CH 1 (VOUTB) */
+    mcp4902_write(1, value);
 }
 
-/*============================================================================
+/*
  * Read Button State
- * 
  * Reads a button input and returns 1 if pressed (active-low), 0 otherwise.
  * 
  * @param port Pointer to port register (PIND or PINB)
- * @param bit Bit position within the port
+ * @param bit  Bit position within the port
  * @return 1 if button pressed, 0 if not pressed
- *===========================================================================*/
+ */
 
-uint8_t read_button(volatile uint8_t *port, uint8_t bit) {
-    // Button is active-low: 0 = pressed, 1 = not pressed
+uint8_t read_button(volatile uint8_t *port, uint8_t bit)
+{
     return !(*port & (1 << bit));
 }
 
-/*============================================================================
+/*
  * Set Brake Output State
- * 
  * Sets the brake output pin (PB1) to HIGH or LOW.
- * This is a PUSH-PULL digital output - can drive both 5V and 0V directly.
+ * This is a PUSH-PULL digital output to drive 5v and 0v directly.
  * 
+ * NOTE: This would normally be DAC values 32 or 208,8
+ *       but we don't have a third DAC channel.
+ *
  * @param state 1 for HIGH (5V), 0 for LOW (0V)
- *===========================================================================*/
+ */
 
-void set_brake_output(uint8_t state) {
-    if (state) {
-        PORTB |= (1 << B3_OUT_PIN_BIT);   // Set HIGH (5V)
-    } else {
-        PORTB &= ~(1 << B3_OUT_PIN_BIT);  // Set LOW (0V)
+void set_brake_output(uint8_t state)
+{
+    if (state)
+    {
+        PORTB |= (1 << B3_OUT_PIN_BIT);   // HIGH (5v)
+    } else
+    {
+        PORTB &= ~(1 << B3_OUT_PIN_BIT);  // LOW  (0v)
     }
 }
 
-/*============================================================================
+/*
  * Set Shift Output State
- * 
  * Sets the shift output pin (PB2) to HIGH or LOW.
- * This is a PUSH-PULL digital output - can drive both 5V and 0V directly.
+ * This is a PUSH-PULL digital output to drive 5v and 0v directly.
  * 
- * @param state 1 for HIGH (5V), 0 for LOW (0V)
- *===========================================================================*/
+ * @param state 1 for HIGH (5v), 0 for LOW (0v)
+ */
 
-void set_shift_output(uint8_t state) {
-    if (state) {
-        PORTB |= (1 << B2_OUT_PIN_BIT);   // Set HIGH (5V)
-    } else {
-        PORTB &= ~(1 << B2_OUT_PIN_BIT);  // Set LOW (0V)
+void set_shift_output(uint8_t state)
+{
+    if (state)
+    {
+        PORTB |= (1 << B2_OUT_PIN_BIT);   // HIGH (5v)
+    } else
+    {
+        PORTB &= ~(1 << B2_OUT_PIN_BIT);  // LOW  (0v)
     }
 }
 
-/*============================================================================
+/*
  * Update All Outputs
- * 
  * Main output update function called in the main loop. Handles:
  * - B1 (Accelerate): Enables VOUTA, UP/DOWN adjust voltage when pressed
  * - B2 (Shift): Single digital output PB2, HIGH or LOW based on toggle
  * - B3 (Brake): Digital output PB1, HIGH when pressed, LOW when not
  * - LEFT/RIGHT: Adjusts steering voltage (VOUTB)
  * 
- * Implements debouncing and button repeat functionality.
- *===========================================================================*/
+ * Implements debouncing and button repeat functionality
+ */
 
-void update_outputs(void) {
+void update_outputs(void)
+{
     static uint8_t b1_state = 0;
     
-    // =========================================================================
-    // B1 (Accelerate) - Enables adjustable VOUTA voltage
-    // When pressed: VOUTA is enabled and can be adjusted with UP/DOWN
-    // When not pressed: VOUTA = 0V
-    // =========================================================================
-    
-    if (read_button(&PIND, B1_PIN_BIT)) {  // B1 pressed
-        if (!b1_state) {
+    /* B1: Accelerate Button, enabled VOUTA voltage */
+    if (read_button(&PIND, B1_PIN_BIT))
+    { 
+        if (! b1_state)
+        {
             b1_state = 1;
-            // Default to 0V when first pressed (safe)
-            if (accel_voltage_value == 0) {
-                accel_voltage_value = DAC_MIN_VALUE;  // 0V default (safe)
-            }
             update_accel_voltage(accel_voltage_value);
         }
-    } else {
-        if (b1_state) {
+    } else
+    {
+        if (b1_state)
+        {
             b1_state = 0;
-            update_accel_voltage(0);  // 0V when not pressed
+            update_accel_voltage(ACCEL_MIN_VALUE);
         }
     }
     
-    // =========================================================================
-    // B2 (Shift) - Single Digital Output (PB2, PUSH-PULL)
-    // Toggles state on button press, maintains state internally
-    // =========================================================================
-    
-    static uint8_t b2_last_state = 1;  // Start as not pressed (pull-up)
+    /* B2: Shift Toggle, Digital Output, Maintains state internally */
+
+    static uint8_t b2_last_state = 1;
     static uint32_t b2_debounce_counter = 0;
-    
     uint8_t b2_current = read_button(&PIND, B2_PIN_BIT);
     
-    // Debounce detection
-    if (b2_current != b2_last_state) {
+    /* Debounce Detection */
+    if (b2_current != b2_last_state)
+    {
         b2_debounce_counter++;
-        if (b2_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
-            // State changed, toggle latch
-            if (b2_current == 0) {  // Button just pressed
+        if (b2_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS))
+        {
+            /* Toggle Latch */
+            if (b2_current == 0)
+            {
                 b2_toggle_state = !b2_toggle_state;
-                
-                // Update shift output based on new state
                 set_shift_output(b2_toggle_state);
             }
             b2_debounce_counter = 0;
         }
-    } else {
+    } else
+    {
         b2_debounce_counter = 0;
     }
     
     b2_last_state = b2_current;
     
-    // =========================================================================
-    // B3 (Brake) - Digital Output (PB1, PUSH-PULL)
-    // When pressed: PB1 = HIGH (5V)
-    // When not pressed: PB1 = LOW (0V)
-    // =========================================================================
-    
-    if (read_button(&PIND, B3_PIN_BIT)) {  // B3 pressed
-        if (!brake_pressed_state) {
+    /* B3: Brake, Digital Output */
+    if (read_button(&PIND, B3_PIN_BIT))
+    {
+        if (! brake_pressed_state)
+        {
             brake_pressed_state = 1;
-            set_brake_output(1);  // Drive HIGH (5V)
+            set_brake_output(1);  // HIGH (5v)
         }
-    } else {
+    } else
+    {
         if (brake_pressed_state) {
             brake_pressed_state = 0;
-            set_brake_output(0);  // Drive LOW (0V)
+            set_brake_output(0);  // LOW (0v)
         }
     }
     
-    // =========================================================================
-    // UP/DOWN - Adjust accelerator voltage (only when B1 is pressed)
-    // =========================================================================
+    /* UP/DOWN: Adjust Accelerator Voltage when B1 is Pressed */
     
     static uint8_t up_pressed = 0;
     static uint8_t down_pressed = 0;
     
-    // UP button - increase accelerator voltage
-    if (read_button(&PIND, UP_PIN_BIT)) {  // UP pressed
-        if (!up_pressed) {
-            // First press - immediate adjustment
+    /* UP: Increase accelerator voltage */
+
+    if (read_button(&PIND, UP_PIN_BIT))
+    {
+        if (! up_pressed)
+        {
             accel_voltage_value += ACCEL_ADJUST_STEP;
-            if (accel_voltage_value > DAC_MAX_VALUE) {
-                accel_voltage_value = DAC_MAX_VALUE;
+            if (accel_voltage_value > ACCEL_MAX_VALUE)
+            {
+                accel_voltage_value = ACCEL_MAX_VALUE;
             }
-            if (b1_state) {
+            if (b1_state)
+            {
                 update_accel_voltage(accel_voltage_value);
             }
             up_pressed = 1;
             up_last_press_time = loop_counter;
-        } else if (b1_state && 
-                   (loop_counter - up_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-            // Repeat adjustment while held
-            if ((loop_counter - up_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
+        } else if (b1_state
+                   && (loop_counter - up_last_press_time 
+                      >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        {
+            if ((loop_counter - up_last_press_time) 
+                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2)
+            {
                 accel_voltage_value += ACCEL_ADJUST_STEP;
-                if (accel_voltage_value > DAC_MAX_VALUE) {
-                    accel_voltage_value = DAC_MAX_VALUE;
+                if (accel_voltage_value > ACCEL_MAX_VALUE)
+                {
+                    accel_voltage_value = ACCEL_MAX_VALUE;
                 }
                 update_accel_voltage(accel_voltage_value);
             }
@@ -486,28 +448,36 @@ void update_outputs(void) {
         up_pressed = 0;
     }
     
-    // DOWN button - decrease accelerator voltage
-    if (read_button(&PIND, DOWN_PIN_BIT)) {  // DOWN pressed
-        if (!down_pressed) {
-            // First press - immediate adjustment
-            if (accel_voltage_value >= ACCEL_ADJUST_STEP) {
+    /* DOWN: Decrease accelerator voltage */
+
+    if (read_button(&PIND, DOWN_PIN_BIT))
+    {
+        if (! down_pressed)
+        {
+            if (accel_voltage_value >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
+            {
                 accel_voltage_value -= ACCEL_ADJUST_STEP;
             } else {
-                accel_voltage_value = 0;
+                accel_voltage_value = ACCEL_MIN_VALUE;
             }
-            if (b1_state) {
+            if (b1_state)
+            {
                 update_accel_voltage(accel_voltage_value);
             }
             down_pressed = 1;
             down_last_press_time = loop_counter;
-        } else if (b1_state && 
-                   (loop_counter - down_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-            // Repeat adjustment while held
-            if ((loop_counter - down_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
-                if (accel_voltage_value >= ACCEL_ADJUST_STEP) {
+        } else if (b1_state
+                   && (loop_counter - down_last_press_time 
+                       >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        {
+            if ((loop_counter - down_last_press_time) 
+                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            {
+                if (accel_voltage_value >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
+                {
                     accel_voltage_value -= ACCEL_ADJUST_STEP;
                 } else {
-                    accel_voltage_value = 0;
+                    accel_voltage_value = ACCEL_MIN_VALUE;
                 }
                 update_accel_voltage(accel_voltage_value);
             }
@@ -516,83 +486,106 @@ void update_outputs(void) {
         down_pressed = 0;
     }
     
-    // =========================================================================
-    // LEFT/RIGHT - Adjust steering voltage (VOUTB)
-    // =========================================================================
+    /* Steering Voltage (VOUTB) 
+     * ------------------------
+     */    
     
     static uint8_t left_pressed = 0;
     static uint8_t right_pressed = 0;
     
-   // RIGHT button - increase steering voltage toward 5V (new behavior)
-if (read_button(&PINB, RIGHT_PIN_BIT)) {
-    if (!right_pressed) {
-        steering_voltage_value += STEERING_ADJUST_STEP;
-        if (steering_voltage_value > DAC_MAX_VALUE) {
-            steering_voltage_value = DAC_MAX_VALUE;
-        }
-        update_steering_voltage(steering_voltage_value);
-        right_pressed = 1;
-        right_last_press_time = loop_counter;
-    } else if ((loop_counter - right_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-        if ((loop_counter - right_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
+    /* RIGHT: Increase steering voltage toward STEERING_MAX_VALUE */
+    if (read_button(&PINB, RIGHT_PIN_BIT))
+    {
+        if (! right_pressed) {
             steering_voltage_value += STEERING_ADJUST_STEP;
-            if (steering_voltage_value > DAC_MAX_VALUE) {
-                steering_voltage_value = DAC_MAX_VALUE;
+            if (steering_voltage_value > STEERING_MAX_VALUE)
+            {
+                steering_voltage_value = STEERING_MAX_VALUE;
             }
             update_steering_voltage(steering_voltage_value);
-        }
+            right_pressed = 1;
+            right_last_press_time = loop_counter;
+        } else if ((loop_counter - right_last_press_time
+                >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        {
+            if ((loop_counter - right_last_press_time) 
+                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            {
+                steering_voltage_value += STEERING_ADJUST_STEP;
+                if (steering_voltage_value > STEERING_MAX_VALUE)
+                {
+                    steering_voltage_value = STEERING_MAX_VALUE;
+                }
+                update_steering_voltage(steering_voltage_value);
+            }
         }
     } else {
         right_pressed = 0;
     }
 
-    // LEFT button - decrease steering voltage toward 0V (new behavior)
-    if (read_button(&PIND, LEFT_PIN_BIT)) {
-    if (!left_pressed) {
-        if (steering_voltage_value >= STEERING_ADJUST_STEP) {
-            steering_voltage_value -= STEERING_ADJUST_STEP;
-        } else {
-            steering_voltage_value = 0;
-        }
-        update_steering_voltage(steering_voltage_value);
-        left_pressed = 1;
-        left_last_press_time = loop_counter;
-    } else if ((loop_counter - left_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS))) {
-        if ((loop_counter - left_last_press_time) % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) {
-            if (steering_voltage_value >= STEERING_ADJUST_STEP) {
+    /* LEFT: Decrease steering voltage toward STEERING_MIN_VALUE */
+    if (read_button(&PIND, LEFT_PIN_BIT))
+    {
+        if (! left_pressed)
+        {
+            if (steering_voltage_value >= 
+                STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
+            {
                 steering_voltage_value -= STEERING_ADJUST_STEP;
             } else {
-                steering_voltage_value = 0;
+                steering_voltage_value = STEERING_MIN_VALUE;
             }
+
             update_steering_voltage(steering_voltage_value);
-        }
+            left_pressed = 1;
+            left_last_press_time = loop_counter;
+        } else if ((loop_counter - left_last_press_time 
+                    >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        {
+            if ((loop_counter - left_last_press_time) 
+                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            {
+                if (steering_voltage_value >= 
+                    STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
+                {
+                    steering_voltage_value -= STEERING_ADJUST_STEP;
+                } else {
+                    steering_voltage_value = STEERING_MIN_VALUE;
+                }
+
+                update_steering_voltage(steering_voltage_value);
+            }
         }
     } else {
         left_pressed = 0;
     }
  
-    // Return to neutral (2.5V) when neither LEFT nor RIGHT is pressed
-    if (!left_pressed && !right_pressed) {
-        // Check if we're close to neutral (within one step)
-        uint16_t diff = (steering_voltage_value > DAC_MID_VALUE) ? 
-                        (steering_voltage_value - DAC_MID_VALUE) : 
-                        (DAC_MID_VALUE - steering_voltage_value);
+    /* Zero steering (2.5v) when neither L/R is pressed */
+    if (! left_pressed && ! right_pressed)
+    {
+        /* Check if we're within one step of neutral */
+        uint16_t diff = (steering_voltage_value > STEERING_MID_VALUE) ? 
+                        (steering_voltage_value - STEERING_MID_VALUE) : 
+                        (STEERING_MID_VALUE - steering_voltage_value);
         
         if (diff <= STEERING_ADJUST_STEP) {
-            // Snap to exact neutral
-            steering_voltage_value = DAC_MID_VALUE;
+            steering_voltage_value = STEERING_MID_VALUE;
             update_steering_voltage(steering_voltage_value);
         } else {
-            // Move toward neutral gradually (smooth return)
-            if (steering_voltage_value > DAC_MID_VALUE) {
+            /* Smoothly return to zero */
+            if (steering_voltage_value > STEERING_MID_VALUE)
+            {
                 steering_voltage_value -= STEERING_ADJUST_STEP / 2;
-                if (steering_voltage_value < DAC_MID_VALUE) {
-                    steering_voltage_value = DAC_MID_VALUE;
+                if (steering_voltage_value < STEERING_MID_VALUE)
+                {
+                    steering_voltage_value = STEERING_MID_VALUE;
                 }
-            } else if (steering_voltage_value < DAC_MID_VALUE) {
+            } else if (steering_voltage_value < STEERING_MID_VALUE)
+            {
                 steering_voltage_value += STEERING_ADJUST_STEP / 2;
-                if (steering_voltage_value > DAC_MID_VALUE) {
-                    steering_voltage_value = DAC_MID_VALUE;
+                if (steering_voltage_value > STEERING_MID_VALUE)
+                {
+                    steering_voltage_value = STEERING_MID_VALUE;
                 }
             }
             update_steering_voltage(steering_voltage_value);
