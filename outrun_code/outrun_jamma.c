@@ -38,6 +38,10 @@
 #define BUTTON_REPEAT_DELAY_MS  300
 #define BUTTON_REPEAT_RATE_MS   50
 
+/* Steering-specific button repeat timing for fast response */
+#define STEERING_BUTTON_REPEAT_DELAY_MS   150    /* Initial Steering Response */
+#define STEERING_BUTTON_REPEAT_RATE_MS    30     /* Continuous Adjustment */
+
 /*
  * Accelerator Pedal DAC Constants
  * Voltage step size (~19.6mV per step)
@@ -49,19 +53,18 @@
 #define ACCEL_MAX_VALUE           144
 
 /*
- * Steering DAC Constants
+ * Steering DAC Constants - Game-recognized range (51-203), Zeroed @ 128
  * Voltage step size (~19.6mV per step)
- * From manual: Valid steering ranges 51-203, Zeroed @ 128
  */
 
-#define STEERING_ADJUST_STEP    2       /* ~39mV per step for smooth steering */
-#define STEERING_MIN_VALUE      51
-#define STEERING_MAX_VALUE      203
-#define STEERING_MID_VALUE	128
-#define STEERING_RETURN_STEP    1       /* ~19.6mV per step for smooth return */
+#define STEERING_ADJUST_STEP      2     /* ~39mV per step for smooth steering */
+#define STEERING_MIN_VALUE        51
+#define STEERING_MAX_VALUE        203
+#define STEERING_MID_VALUE  	  128
+#define STEERING_RETURN_STEP      1     /* ~19.6mV per step for smooth return */
 
-/* Loop Timing; Loop runs at 100us intervals per _delay_us(100) */
-#define LOOP_TIME_MS    0.1
+/* Loop Timing; MCP4902 settling time is 4.5us, 20us safe for smooth updates */
+#define LOOP_TIME_MS    0.05
 #define MS_TO_LOOPS(ms) ((uint32_t)((ms)/LOOP_TIME_MS))
 
 /*
@@ -74,8 +77,8 @@
 #define B3_PIN_BIT              PD4     // Brake          - Pin 6  (XCK/T0)
 #define UP_PIN_BIT              PD5     // Increase accel - Pin 11 (T1)
 #define DOWN_PIN_BIT            PD6     // Decrease accel - Pin 12 (AIN0)
-#define LEFT_PIN_BIT            PD7     // Increase steer - Pin 13 (AIN1)
-#define RIGHT_PIN_BIT           PB0     // Decrease steer - Pin 14 (ICP1)
+#define LEFT_PIN_BIT            PD7     // Decrease steer - Pin 13 (AIN1)
+#define RIGHT_PIN_BIT           PB0     // Increase steer - Pin 14 (ICP1)
 
 /* Output pins */
 #define B3_OUT_PIN_BIT          PB1     // Brake output - Pin 15 (OC1A)
@@ -96,6 +99,13 @@ static uint32_t down_last_press_time  = 0;
 static uint32_t left_last_press_time  = 0;
 static uint32_t right_last_press_time = 0;
 
+/* Accelerator ramp-up state for smooth pedal engagement */
+static uint8_t accel_ramp_target      = ACCEL_MIN_VALUE;
+
+/* Steering button state tracking for separate repeat timing */
+static uint8_t left_steering_pressed  = 0;
+static uint8_t right_steering_pressed = 0;
+
 static uint32_t loop_counter = 0;
 
 int main(void)
@@ -112,7 +122,7 @@ int main(void)
     /* Main event loop */
     while (1) {
         update_outputs();
-        _delay_us(100);
+        _delay_us(50);
         loop_counter++;
     }
     
@@ -355,17 +365,50 @@ void update_outputs(void)
         if (! b1_state)
         {
             b1_state = 1;
-            update_accel_voltage(accel_voltage_value);
+
+            /* Set ramp target to current stored value for smooth engagement */
+            accel_ramp_target = accel_voltage_value;
+
+            /* Start ramp-up from current value to target */
+        } else {
+            /* Continue accelerating if UP pressed while B1 held */
         }
-    } else
-    {
+
+        update_accel_voltage(accel_voltage_value);
+    } else {
         if (b1_state)
         {
             b1_state = 0;
+
+            /* Ramp down to minimum when pedal released */
+            accel_ramp_target = ACCEL_MIN_VALUE;
+        } else {
             update_accel_voltage(ACCEL_MIN_VALUE);
         }
     }
-    
+
+    /* Accelerator ramp-up smoothing (50ms to full value) */
+    if (b1_state && accel_voltage_value < accel_ramp_target)
+    {
+        /* Ramp up: 2 steps per loop = ~196mV/ms */
+        accel_voltage_value += 2;
+        if (accel_voltage_value > accel_ramp_target)
+        {
+            accel_voltage_value = accel_ramp_target;
+        }
+
+        update_accel_voltage(accel_voltage_value);
+
+    } else if (!b1_state && accel_voltage_value > ACCEL_MIN_VALUE)
+    {
+        /* Ramp down when pedal released */
+        accel_voltage_value -= 2;
+        if (accel_voltage_value < ACCEL_MIN_VALUE) {
+            accel_voltage_value = ACCEL_MIN_VALUE;
+        }
+        update_accel_voltage(accel_voltage_value);
+    }
+
     /* B2: Shift Toggle, Digital Output, Maintains state internally */
 
     static uint8_t b2_last_state = 1;
@@ -436,10 +479,11 @@ void update_outputs(void)
                    && (loop_counter - up_last_press_time 
                       >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
         {
-            if ((loop_counter - up_last_press_time) 
-                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2)
+            if (loop_counter - up_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS))
             {
                 accel_voltage_value += ACCEL_ADJUST_STEP;
+                up_last_press_time = loop_counter;
+
                 if (accel_voltage_value > ACCEL_MAX_VALUE)
                 {
                     accel_voltage_value = ACCEL_MAX_VALUE;
@@ -473,9 +517,10 @@ void update_outputs(void)
                    && (loop_counter - down_last_press_time 
                        >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
         {
-            if ((loop_counter - down_last_press_time) 
-                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            if (loop_counter - down_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS)) 
             {
+                down_last_press_time = loop_counter;
+
                 if (accel_voltage_value >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
                 {
                     accel_voltage_value -= ACCEL_ADJUST_STEP;
@@ -497,6 +542,8 @@ void update_outputs(void)
     /* RIGHT: Increase steering voltage toward STEERING_MAX_VALUE */
     if (read_button(&PINB, RIGHT_PIN_BIT))
     {
+        right_steering_pressed = 1;
+
         if (! right_pressed) {
             steering_voltage_value += STEERING_ADJUST_STEP;
             if (steering_voltage_value > STEERING_MAX_VALUE)
@@ -507,12 +554,12 @@ void update_outputs(void)
             right_pressed = 1;
             right_last_press_time = loop_counter;
         } else if ((loop_counter - right_last_press_time
-                >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+                    >= MS_TO_LOOPS(STEERING_BUTTON_REPEAT_DELAY_MS)))
         {
-            if ((loop_counter - right_last_press_time) 
-                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            if (loop_counter - right_last_press_time >= MS_TO_LOOPS(STEERING_BUTTON_REPEAT_RATE_MS))
             {
                 steering_voltage_value += STEERING_ADJUST_STEP;
+                right_last_press_time = loop_counter;
                 if (steering_voltage_value > STEERING_MAX_VALUE)
                 {
                     steering_voltage_value = STEERING_MAX_VALUE;
@@ -522,11 +569,14 @@ void update_outputs(void)
         }
     } else {
         right_pressed = 0;
+        right_steering_pressed = 0;
     }
 
     /* LEFT: Decrease steering voltage toward STEERING_MIN_VALUE */
     if (read_button(&PIND, LEFT_PIN_BIT))
     {
+        left_steering_pressed = 1;
+
         if (! left_pressed)
         {
             if (steering_voltage_value >= 
@@ -540,12 +590,11 @@ void update_outputs(void)
             update_steering_voltage(steering_voltage_value);
             left_pressed = 1;
             left_last_press_time = loop_counter;
-        } else if ((loop_counter - left_last_press_time 
-                    >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        } else if (loop_counter - left_last_press_time >= MS_TO_LOOPS(STEERING_BUTTON_REPEAT_DELAY_MS))
         {
-            if ((loop_counter - left_last_press_time) 
-                 % MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS) < 2) 
+            if (loop_counter - left_last_press_time >= MS_TO_LOOPS(STEERING_BUTTON_REPEAT_RATE_MS))
             {
+                left_last_press_time = loop_counter;
                 if (steering_voltage_value >= 
                     STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
                 {
@@ -559,10 +608,11 @@ void update_outputs(void)
         }
     } else {
         left_pressed = 0;
+        left_steering_pressed = 0;
     }
- 
-    /* Zero steering (2.5v) when neither L/R is pressed */
-    if (! left_pressed && ! right_pressed)
+
+    /* Smoothly center steering (2.5v) when neither L/R is pressed */
+    if (! left_steering_pressed && ! right_steering_pressed)
     {
         /* Smoothly return to neutral using dedicated step size */
         if (steering_voltage_value > STEERING_MID_VALUE)
