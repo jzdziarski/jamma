@@ -348,6 +348,7 @@ void update_outputs(void)
     static uint8_t b1_state = 0;
     
     /* B1: Accelerate Button, enabled VOUTA voltage */
+
     if (read_button(&PIND, B1_PIN_BIT))
     { 
         if (! b1_state)
@@ -392,6 +393,7 @@ void update_outputs(void)
     b2_last_state = b2_current;
     
     /* B3: Brake, Digital Output */
+
     if (read_button(&PIND, B3_PIN_BIT))
     {
         if (! brake_pressed_state)
@@ -486,9 +488,7 @@ void update_outputs(void)
         down_pressed = 0;
     }
     
-    /* Steering Voltage (VOUTB) 
-     * ------------------------
-     */    
+    /* Steering Voltage (VOUTB) */
     
     static uint8_t left_pressed = 0;
     static uint8_t right_pressed = 0;
@@ -592,4 +592,3 @@ void update_outputs(void)
         }
     }
 }
-
