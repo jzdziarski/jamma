@@ -58,6 +58,7 @@
 #define STEERING_MIN_VALUE      51
 #define STEERING_MAX_VALUE      203
 #define STEERING_MID_VALUE	128
+#define STEERING_RETURN_STEP    1       /* ~19.6mV per step for smooth return */
 
 /* Loop Timing; Loop runs at 100us intervals per _delay_us(100) */
 #define LOOP_TIME_MS    0.1
@@ -318,7 +319,7 @@ void set_brake_output(uint8_t state)
  * Sets the shift output pin (PB2) to HIGH or LOW.
  * This is a PUSH-PULL digital output to drive 5v and 0v directly.
  * 
- * @param state 1 for HIGH (5v), 0 for LOW (0v)
+ * @param state 1 for HIGH (5V), 0 for LOW (0V)
  */
 
 void set_shift_output(uint8_t state)
@@ -563,32 +564,24 @@ void update_outputs(void)
     /* Zero steering (2.5v) when neither L/R is pressed */
     if (! left_pressed && ! right_pressed)
     {
-        /* Check if we're within one step of neutral */
-        uint16_t diff = (steering_voltage_value > STEERING_MID_VALUE) ? 
-                        (steering_voltage_value - STEERING_MID_VALUE) : 
-                        (STEERING_MID_VALUE - steering_voltage_value);
-        
-        if (diff <= STEERING_ADJUST_STEP) {
-            steering_voltage_value = STEERING_MID_VALUE;
-            update_steering_voltage(steering_voltage_value);
-        } else {
-            /* Smoothly return to zero */
+        /* Smoothly return to neutral using dedicated step size */
+        if (steering_voltage_value > STEERING_MID_VALUE)
+        {
+            steering_voltage_value -= STEERING_RETURN_STEP;
+            if (steering_voltage_value < STEERING_MID_VALUE)
+            {
+                steering_voltage_value = STEERING_MID_VALUE;
+            }
+        } else if (steering_voltage_value < STEERING_MID_VALUE)
+        {
+            steering_voltage_value += STEERING_RETURN_STEP;
             if (steering_voltage_value > STEERING_MID_VALUE)
             {
-                steering_voltage_value -= STEERING_ADJUST_STEP / 2;
-                if (steering_voltage_value < STEERING_MID_VALUE)
-                {
-                    steering_voltage_value = STEERING_MID_VALUE;
-                }
-            } else if (steering_voltage_value < STEERING_MID_VALUE)
-            {
-                steering_voltage_value += STEERING_ADJUST_STEP / 2;
-                if (steering_voltage_value > STEERING_MID_VALUE)
-                {
-                    steering_voltage_value = STEERING_MID_VALUE;
-                }
+                steering_voltage_value = STEERING_MID_VALUE;
             }
-            update_steering_voltage(steering_voltage_value);
         }
+        
+        /* Only update DAC if value changed */
+        mcp4902_write(1, steering_voltage_value);
     }
 }
