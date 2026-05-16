@@ -1,5 +1,5 @@
 /*
- * @file outrun_jamma.c
+ * @file outrun_jamma.h
  * @brief Headers for Sega Outrun Rev. B to JAMMA Adapter Firmware
  */
 
