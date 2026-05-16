@@ -368,13 +368,7 @@ void update_outputs(void)
 
             /* Set ramp target to current stored value for smooth engagement */
             accel_ramp_target = accel_voltage_value;
-
-            /* Start ramp-up from current value to target */
-        } else {
-            /* Continue accelerating if UP pressed while B1 held */
         }
-
-        update_accel_voltage(accel_voltage_value);
     } else {
         if (b1_state)
         {
@@ -416,21 +410,17 @@ void update_outputs(void)
     uint8_t b2_current = read_button(&PIND, B2_PIN_BIT);
     
     /* Debounce Detection */
-    if (b2_current != b2_last_state)
-    {
+    if (b2_current != b2_last_state) {
         b2_debounce_counter++;
-        if (b2_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS))
-        {
-            /* Toggle Latch */
-            if (b2_current == 0)
-            {
-                b2_toggle_state = !b2_toggle_state;
-                set_shift_output(b2_toggle_state);
-            }
-            b2_debounce_counter = 0;
+    } else {
+        b2_debounce_counter = 0;
+    }
+
+    if (b2_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
+        if (b2_current == 0) {  // Only toggle on press, not release
+            b2_toggle_state = !b2_toggle_state;
+            set_shift_output(b2_toggle_state);
         }
-    } else
-    {
         b2_debounce_counter = 0;
     }
     
