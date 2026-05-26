@@ -33,10 +33,10 @@ LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
 PROGRAMMER = usbtiny
 
 # Fuse bits for ATMEGA328P (8MHz Internal Clock)
-# Low: 0xE2 (internal 8MHz RC oscillator, CKDIV8=1 to divide by 8)
+# Low: 0xC2 (internal 8MHz RC oscillator)
 # High: 0xDE (boot reset vector enabled, SPIEN=0, WDTON=0)
 # Extended: 0xFD (brown-out detect at 2.7V)
-LFUSE = 0xE2
+LFUSE = 0xC2
 HFUSE = 0xDE
 EFUSE = 0xFD
 
