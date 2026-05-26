@@ -39,8 +39,8 @@
 #define BUTTON_REPEAT_RATE_MS   50
 
 /* Steering-specific button repeat timing for fast response */
-#define STEERING_BUTTON_REPEAT_DELAY_MS   150    /* Initial Steering Response */
-#define STEERING_BUTTON_REPEAT_RATE_MS    30     /* Continuous Adjustment */
+#define STEERING_BUTTON_REPEAT_DELAY_MS   300    /* Initial Steering Response */
+#define STEERING_BUTTON_REPEAT_RATE_MS    50     /* Continuous Adjustment */
 
 /*
  * Accelerator Pedal DAC Constants
@@ -48,7 +48,7 @@
  * From manual: Valid pedal ranges 32-144
  */
 
-#define ACCEL_ADJUST_STEP         5    /* ~98mV per step */
+#define ACCEL_ADJUST_STEP         2    /* ~98mV per step */
 #define ACCEL_MIN_VALUE           32
 #define ACCEL_MAX_VALUE           144
 
