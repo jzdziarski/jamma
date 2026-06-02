@@ -106,7 +106,7 @@ static uint8_t accel_ramp_target      = ACCEL_MIN_VALUE;
 static uint8_t left_steering_pressed  = 0;
 static uint8_t right_steering_pressed = 0;
 
-static uint32_t loop_counter = 0;
+static volatile uint32_t loop_counter = 0;
 
 int main(void)
 {
