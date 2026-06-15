@@ -36,7 +36,7 @@
 
 #define DEBOUNCE_DELAY_MS       20
 #define BUTTON_REPEAT_DELAY_MS  300
-#define BUTTON_REPEAT_RATE_MS   50
+#define BUTTON_REPEAT_RATE_MS   31      /* ~2s full sweep: 300ms delay + 54 steps * 31ms */
 
 /* Steering-specific button repeat timing for fast response */
 #define STEERING_BUTTON_REPEAT_DELAY_MS   0     /* Initial Steering Response */
@@ -99,7 +99,8 @@ static uint32_t down_last_press_time  = 0;
 static uint32_t left_last_press_time  = 0;
 static uint32_t right_last_press_time = 0;
 
-/* Accelerator ramp-up state for smooth pedal engagement */
+/* Accelerator ramp target: full throttle on B1 press, idle on release.
+ * Adjustable via UP/DOWN while B1 is held to set a partial-throttle setpoint. */
 static uint8_t accel_ramp_target      = ACCEL_MIN_VALUE;
 
 /* Steering button state tracking for separate repeat timing */
@@ -381,10 +382,11 @@ void update_outputs(void)
         }
     }
 
-    /* Accelerator ramp-up smoothing (50ms to full value) */
-    if (b1_state && accel_voltage_value < accel_ramp_target)
+    /* Accelerator ramp smoothing: tracks accel_ramp_target at 2 steps/loop
+     * (~196mV/ms) in either direction, so UP/DOWN setpoint changes while
+     * B1 is held are followed smoothly rather than overridden. */
+    if (accel_voltage_value < accel_ramp_target)
     {
-        /* Ramp up: 2 steps per loop = ~196mV/ms */
         accel_voltage_value += 2;
         if (accel_voltage_value > accel_ramp_target)
         {
@@ -393,12 +395,11 @@ void update_outputs(void)
 
         update_accel_voltage(accel_voltage_value);
 
-    } else if (!b1_state && accel_voltage_value > ACCEL_MIN_VALUE)
+    } else if (accel_voltage_value > accel_ramp_target)
     {
-        /* Ramp down when pedal released */
         accel_voltage_value -= 2;
-        if (accel_voltage_value < ACCEL_MIN_VALUE) {
-            accel_voltage_value = ACCEL_MIN_VALUE;
+        if (accel_voltage_value < accel_ramp_target) {
+            accel_voltage_value = accel_ramp_target;
         }
         update_accel_voltage(accel_voltage_value);
     }
@@ -449,6 +450,8 @@ void update_outputs(void)
     
     static uint8_t up_pressed = 0;
     static uint8_t down_pressed = 0;
+    static uint8_t up_repeating = 0;
+    static uint8_t down_repeating = 0;
     
     /* UP: Increase accelerator voltage */
 
@@ -456,35 +459,37 @@ void update_outputs(void)
     {
         if (! up_pressed)
         {
-            accel_voltage_value += ACCEL_ADJUST_STEP;
-            if (accel_voltage_value > ACCEL_MAX_VALUE)
-            {
-                accel_voltage_value = ACCEL_MAX_VALUE;
-            }
             if (b1_state)
             {
-                update_accel_voltage(accel_voltage_value);
+                accel_ramp_target += ACCEL_ADJUST_STEP;
+                if (accel_ramp_target > ACCEL_MAX_VALUE)
+                {
+                    accel_ramp_target = ACCEL_MAX_VALUE;
+                }
             }
             up_pressed = 1;
+            up_repeating = 0;
             up_last_press_time = loop_counter;
-        } else if (b1_state
-                   && (loop_counter - up_last_press_time 
-                      >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        } else if (b1_state)
         {
-            if (loop_counter - up_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS))
-            {
-                accel_voltage_value += ACCEL_ADJUST_STEP;
-                up_last_press_time = loop_counter;
+            uint32_t up_threshold = up_repeating ? MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS)
+                                                  : MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS);
 
-                if (accel_voltage_value > ACCEL_MAX_VALUE)
+            if (loop_counter - up_last_press_time >= up_threshold)
+            {
+                accel_ramp_target += ACCEL_ADJUST_STEP;
+                up_last_press_time = loop_counter;
+                up_repeating = 1;
+
+                if (accel_ramp_target > ACCEL_MAX_VALUE)
                 {
-                    accel_voltage_value = ACCEL_MAX_VALUE;
+                    accel_ramp_target = ACCEL_MAX_VALUE;
                 }
-                update_accel_voltage(accel_voltage_value);
             }
         }
     } else {
         up_pressed = 0;
+        up_repeating = 0;
     }
     
     /* DOWN: Decrease accelerator voltage */
@@ -493,37 +498,39 @@ void update_outputs(void)
     {
         if (! down_pressed)
         {
-            if (accel_voltage_value >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
-            {
-                accel_voltage_value -= ACCEL_ADJUST_STEP;
-            } else {
-                accel_voltage_value = ACCEL_MIN_VALUE;
-            }
             if (b1_state)
             {
-                update_accel_voltage(accel_voltage_value);
+                if (accel_ramp_target >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
+                {
+                    accel_ramp_target -= ACCEL_ADJUST_STEP;
+                } else {
+                    accel_ramp_target = ACCEL_MIN_VALUE;
+                }
             }
             down_pressed = 1;
+            down_repeating = 0;
             down_last_press_time = loop_counter;
-        } else if (b1_state
-                   && (loop_counter - down_last_press_time 
-                       >= MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS)))
+        } else if (b1_state)
         {
-            if (loop_counter - down_last_press_time >= MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS)) 
+            uint32_t down_threshold = down_repeating ? MS_TO_LOOPS(BUTTON_REPEAT_RATE_MS)
+                                                       : MS_TO_LOOPS(BUTTON_REPEAT_DELAY_MS);
+
+            if (loop_counter - down_last_press_time >= down_threshold)
             {
                 down_last_press_time = loop_counter;
+                down_repeating = 1;
 
-                if (accel_voltage_value >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
+                if (accel_ramp_target >= ACCEL_MIN_VALUE + ACCEL_ADJUST_STEP)
                 {
-                    accel_voltage_value -= ACCEL_ADJUST_STEP;
+                    accel_ramp_target -= ACCEL_ADJUST_STEP;
                 } else {
-                    accel_voltage_value = ACCEL_MIN_VALUE;
+                    accel_ramp_target = ACCEL_MIN_VALUE;
                 }
-                update_accel_voltage(accel_voltage_value);
             }
         }
     } else {
         down_pressed = 0;
+        down_repeating = 0;
     }
     
     /* Steering Voltage (VOUTB) */
@@ -630,4 +637,5 @@ void update_outputs(void)
         }
     }
 }
+
 
