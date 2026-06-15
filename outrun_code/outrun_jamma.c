@@ -90,7 +90,7 @@
 /* Globals */
 static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;
 static uint8_t steering_voltage_value = STEERING_MID_VALUE;
-static uint8_t b2_toggle_state        = 0;                  // Shift latch (L)
+static uint8_t b2_toggle_state        = 1;                  // Shift latch (L)
 static uint8_t brake_pressed_state    = 0;                  // Brake (L)
 
 /* Globals for button repeat timing */
