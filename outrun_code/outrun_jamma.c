@@ -39,8 +39,8 @@
 #define BUTTON_REPEAT_RATE_MS   50
 
 /* Steering-specific button repeat timing for fast response */
-#define STEERING_BUTTON_REPEAT_DELAY_MS   300    /* Initial Steering Response */
-#define STEERING_BUTTON_REPEAT_RATE_MS    50     /* Continuous Adjustment */
+#define STEERING_BUTTON_REPEAT_DELAY_MS   0     /* Initial Steering Response */
+#define STEERING_BUTTON_REPEAT_RATE_MS    0     /* Continuous Adjustment */
 
 /*
  * Accelerator Pedal DAC Constants
@@ -366,8 +366,8 @@ void update_outputs(void)
         {
             b1_state = 1;
 
-            /* Set ramp target to current stored value for smooth engagement */
-            accel_ramp_target = accel_voltage_value;
+            /* Ramp target is full throttle when pedal is pressed */
+            accel_ramp_target = ACCEL_MAX_VALUE;
         }
     } else {
         if (b1_state)
@@ -405,26 +405,28 @@ void update_outputs(void)
 
     /* B2: Shift Toggle, Digital Output, Maintains state internally */
 
-    static uint8_t b2_last_state = 1;
+    static uint8_t b2_confirmed_state = 0;
+    static uint8_t b2_raw_last = 0;
     static uint32_t b2_debounce_counter = 0;
     uint8_t b2_current = read_button(&PIND, B2_PIN_BIT);
     
     /* Debounce Detection */
-    if (b2_current != b2_last_state) {
-        b2_debounce_counter++;
-    } else {
+    if (b2_current != b2_raw_last) {
         b2_debounce_counter = 0;
+        b2_raw_last = b2_current;
+    } else {
+        b2_debounce_counter++;
     }
 
-    if (b2_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
-        if (b2_current == 0) {  // Only toggle on press, not release
-            b2_toggle_state = !b2_toggle_state;
-            set_shift_output(b2_toggle_state);
+    if (b2_debounce_counter == MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
+        if (b2_current != b2_confirmed_state) {
+            b2_confirmed_state = b2_current;
+            if (b2_current == 1) {  // Only toggle on press, not release
+                b2_toggle_state = !b2_toggle_state;
+                set_shift_output(b2_toggle_state);
+            }
         }
-        b2_debounce_counter = 0;
     }
-    
-    b2_last_state = b2_current;
     
     /* B3: Brake, Digital Output */
 
@@ -612,6 +614,9 @@ void update_outputs(void)
             {
                 steering_voltage_value = STEERING_MID_VALUE;
             }
+
+            /* Only update DAC if value changed */
+            mcp4902_write(1, steering_voltage_value);
         } else if (steering_voltage_value < STEERING_MID_VALUE)
         {
             steering_voltage_value += STEERING_RETURN_STEP;
@@ -619,9 +624,10 @@ void update_outputs(void)
             {
                 steering_voltage_value = STEERING_MID_VALUE;
             }
+
+            /* Only update DAC if value changed */
+            mcp4902_write(1, steering_voltage_value);
         }
-        
-        /* Only update DAC if value changed */
-        mcp4902_write(1, steering_voltage_value);
     }
 }
+
