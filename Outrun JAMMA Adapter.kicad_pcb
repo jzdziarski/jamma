@@ -2081,7 +2081,7 @@
 				)
 			)
 		)
-		(property "Value" "328P"
+		(property "Value" "ATMEGA328"
 			(at 3.81 35.35 90)
 			(layer "F.SilkS")
 			(uuid "f9dca2a7-0e01-4496-91c7-844e11de96b6")
@@ -11458,6 +11458,7 @@
 		(property "Value" "H"
 			(at 9.9 6.35 0)
 			(layer "F.Fab")
+			(hide yes)
 			(uuid "5d12ebee-968c-40a4-9eb5-f6a8c7835a38")
 			(effects
 				(font
@@ -11781,7 +11782,8 @@
 		)
 		(property "Value" "P"
 			(at 5.94 6.1 0)
-			(layer "F.Fab")
+			(layer "F.Fab" knockout)
+			(hide yes)
 			(uuid "f90eb19a-df7e-4876-a500-656c7b5b58ba")
 			(effects
 				(font
