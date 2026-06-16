@@ -61,7 +61,8 @@
 #define STEERING_MIN_VALUE        51
 #define STEERING_MAX_VALUE        203
 #define STEERING_MID_VALUE  	  128
-#define STEERING_RETURN_STEP      1     /* ~19.6mV per step for smooth return */
+#define STEERING_RETURN_DIVISOR   16    /* Proportional return: step = distance/16
+                                         * (4 steps at full lock, 1 step near center) */
 
 /* Loop Timing; MCP4902 settling time is 4.5us, 20us safe for smooth updates */
 #define LOOP_TIME_MS    0.05
@@ -613,23 +614,34 @@ void update_outputs(void)
     /* Smoothly center steering (2.5v) when neither L/R is pressed */
     if (! left_steering_pressed && ! right_steering_pressed)
     {
-        /* Smoothly return to neutral using dedicated step size */
+        /* Proportional return to neutral: step = distance/DIVISOR, min 1.
+         * Mimics spring-force return — faster far from center, slower near it. */
         if (steering_voltage_value > STEERING_MID_VALUE)
         {
-            steering_voltage_value -= STEERING_RETURN_STEP;
-            if (steering_voltage_value < STEERING_MID_VALUE)
+            uint8_t distance = steering_voltage_value - STEERING_MID_VALUE;
+            uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
+            if (return_step < 1) return_step = 1;
+
+            if (distance <= return_step)
             {
                 steering_voltage_value = STEERING_MID_VALUE;
+            } else {
+                steering_voltage_value -= return_step;
             }
 
             /* Only update DAC if value changed */
             mcp4902_write(1, steering_voltage_value);
         } else if (steering_voltage_value < STEERING_MID_VALUE)
         {
-            steering_voltage_value += STEERING_RETURN_STEP;
-            if (steering_voltage_value > STEERING_MID_VALUE)
+            uint8_t distance = STEERING_MID_VALUE - steering_voltage_value;
+            uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
+            if (return_step < 1) return_step = 1;
+
+            if (distance <= return_step)
             {
                 steering_voltage_value = STEERING_MID_VALUE;
+            } else {
+                steering_voltage_value += return_step;
             }
 
             /* Only update DAC if value changed */
@@ -637,5 +649,3 @@ void update_outputs(void)
         }
     }
 }
-
-
