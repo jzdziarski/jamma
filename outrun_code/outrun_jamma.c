@@ -38,9 +38,10 @@
 #define BUTTON_REPEAT_DELAY_MS  300
 #define BUTTON_REPEAT_RATE_MS   31      /* ~2s full sweep: 300ms delay + 54 steps * 31ms */
 
-/* Steering-specific button repeat timing for fast response */
-#define STEERING_BUTTON_REPEAT_DELAY_MS   0     /* Initial Steering Response */
-#define STEERING_BUTTON_REPEAT_RATE_MS    0     /* Continuous Adjustment */
+/* Steering button repeat: 80ms delay then 25ms (~40Hz) per step.
+ * With step=2, full lock (76 units) takes ~80 + 38*25 = ~1s. */
+#define STEERING_BUTTON_REPEAT_DELAY_MS   0
+#define STEERING_BUTTON_REPEAT_RATE_MS    1
 
 /*
  * Accelerator Pedal DAC Constants
@@ -63,6 +64,9 @@
 #define STEERING_MID_VALUE  	  128
 #define STEERING_RETURN_DIVISOR   16    /* Proportional return: step = distance/16
                                          * (4 steps at full lock, 1 step near center) */
+#define STEERING_RETURN_RATE_MS    2    /* Throttle return-to-center: ~12ms between
+                                         * steps gives ~230ms full-lock-to-center,
+                                         * matching a real spring-loaded wheel */
 
 /* Loop Timing; MCP4902 settling time is 4.5us, 20us safe for smooth updates */
 #define LOOP_TIME_MS    0.05
@@ -91,6 +95,7 @@
 /* Globals */
 static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;
 static uint8_t steering_voltage_value = STEERING_MID_VALUE;
+static uint8_t last_steering_dac_value = 0xFF;              /* Sentinel: forces first write */
 static uint8_t b2_toggle_state        = 1;                  // Shift latch (L)
 static uint8_t brake_pressed_state    = 0;                  // Brake (L)
 
@@ -231,13 +236,9 @@ void mcp4902_write(uint8_t channel, uint8_t data)
             PORTB &= ~(1 << MCP_SD_PIN_BIT);  // LOW
         }
         
-        /* Pulse SCK on rising edge */
+        /* Pulse SCK - MCP4902 accepts up to 20MHz SCK; AVR GPIO toggle
+         * (~125ns) is well above the 50ns min pulse width. */
         PORTB |= (1 << MCP_SCK_PIN_BIT);
-        
-        /* Stabilize signal */
-        _delay_us(1);
-        
-        /* Falling edge of SCK */
         PORTB &= ~(1 << MCP_SCK_PIN_BIT);
         
         /* Shift to next bit */
@@ -283,11 +284,14 @@ void update_steering_voltage(uint8_t value) {
     {
         value = STEERING_MAX_VALUE;
     }
-    
+
     steering_voltage_value = value;
-    
-    /* Write to MCP4902 CH 1 (VOUTB) */
-    mcp4902_write(1, value);
+
+    /* Skip DAC write if value hasn't changed (e.g. clamped at MAX/MIN) */
+    if (value != last_steering_dac_value) {
+        mcp4902_write(1, value);
+        last_steering_dac_value = value;
+    }
 }
 
 /*
@@ -534,13 +538,31 @@ void update_outputs(void)
         down_repeating = 0;
     }
     
-    /* Steering Voltage (VOUTB) */
-    
+    /* Steering Voltage (VOUTB) - LEFT/RIGHT debounced like B2 */
+
     static uint8_t left_pressed = 0;
     static uint8_t right_pressed = 0;
-    
+    static uint8_t left_debounced = 0;
+    static uint8_t left_raw_last = 0;
+    static uint32_t left_debounce_counter = 0;
+    static uint8_t right_debounced = 0;
+    static uint8_t right_raw_last = 0;
+    static uint32_t right_debounce_counter = 0;
+
+    /* Debounce RIGHT (PB0) */
+    uint8_t right_raw = read_button(&PINB, RIGHT_PIN_BIT);
+    if (right_raw != right_raw_last) {
+        right_debounce_counter = 0;
+        right_raw_last = right_raw;
+    } else {
+        right_debounce_counter++;
+    }
+    if (right_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
+        right_debounced = right_raw;
+    }
+
     /* RIGHT: Increase steering voltage toward STEERING_MAX_VALUE */
-    if (read_button(&PINB, RIGHT_PIN_BIT))
+    if (right_debounced)
     {
         right_steering_pressed = 1;
 
@@ -572,15 +594,26 @@ void update_outputs(void)
         right_steering_pressed = 0;
     }
 
+    /* Debounce LEFT (PD7) */
+    uint8_t left_raw = read_button(&PIND, LEFT_PIN_BIT);
+    if (left_raw != left_raw_last) {
+        left_debounce_counter = 0;
+        left_raw_last = left_raw;
+    } else {
+        left_debounce_counter++;
+    }
+    if (left_debounce_counter >= MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
+        left_debounced = left_raw;
+    }
+
     /* LEFT: Decrease steering voltage toward STEERING_MIN_VALUE */
-    if (read_button(&PIND, LEFT_PIN_BIT))
+    if (left_debounced)
     {
         left_steering_pressed = 1;
 
         if (! left_pressed)
         {
-            if (steering_voltage_value >= 
-                STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
+            if (steering_voltage_value >= STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
             {
                 steering_voltage_value -= STEERING_ADJUST_STEP;
             } else {
@@ -595,8 +628,7 @@ void update_outputs(void)
             if (loop_counter - left_last_press_time >= MS_TO_LOOPS(STEERING_BUTTON_REPEAT_RATE_MS))
             {
                 left_last_press_time = loop_counter;
-                if (steering_voltage_value >= 
-                    STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
+                if (steering_voltage_value >= STEERING_MIN_VALUE + STEERING_ADJUST_STEP)
                 {
                     steering_voltage_value -= STEERING_ADJUST_STEP;
                 } else {
@@ -611,41 +643,47 @@ void update_outputs(void)
         left_steering_pressed = 0;
     }
 
-    /* Smoothly center steering (2.5v) when neither L/R is pressed */
+    /* Smoothly center steering when neither L/R is held.
+     * Proportional step (distance/16, min 1) gives faster return far from
+     * center, slower near it. Throttled to STEERING_RETURN_RATE_MS so the
+     * full-lock-to-center sweep takes ~230ms instead of ~2ms. */
     if (! left_steering_pressed && ! right_steering_pressed)
     {
-        /* Proportional return to neutral: step = distance/DIVISOR, min 1.
-         * Mimics spring-force return — faster far from center, slower near it. */
-        if (steering_voltage_value > STEERING_MID_VALUE)
+        static uint32_t last_return_loop = 0;
+
+        if (loop_counter - last_return_loop >= MS_TO_LOOPS(STEERING_RETURN_RATE_MS))
         {
-            uint8_t distance = steering_voltage_value - STEERING_MID_VALUE;
-            uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
-            if (return_step < 1) return_step = 1;
+            last_return_loop = loop_counter;
 
-            if (distance <= return_step)
+            if (steering_voltage_value > STEERING_MID_VALUE)
             {
-                steering_voltage_value = STEERING_MID_VALUE;
-            } else {
-                steering_voltage_value -= return_step;
-            }
+                uint8_t distance = steering_voltage_value - STEERING_MID_VALUE;
+                uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
+                if (return_step < 1) return_step = 1;
 
-            /* Only update DAC if value changed */
-            mcp4902_write(1, steering_voltage_value);
-        } else if (steering_voltage_value < STEERING_MID_VALUE)
-        {
-            uint8_t distance = STEERING_MID_VALUE - steering_voltage_value;
-            uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
-            if (return_step < 1) return_step = 1;
+                if (distance <= return_step)
+                {
+                    steering_voltage_value = STEERING_MID_VALUE;
+                } else {
+                    steering_voltage_value -= return_step;
+                }
 
-            if (distance <= return_step)
+                update_steering_voltage(steering_voltage_value);
+            } else if (steering_voltage_value < STEERING_MID_VALUE)
             {
-                steering_voltage_value = STEERING_MID_VALUE;
-            } else {
-                steering_voltage_value += return_step;
-            }
+                uint8_t distance = STEERING_MID_VALUE - steering_voltage_value;
+                uint8_t return_step = distance / STEERING_RETURN_DIVISOR;
+                if (return_step < 1) return_step = 1;
 
-            /* Only update DAC if value changed */
-            mcp4902_write(1, steering_voltage_value);
+                if (distance <= return_step)
+                {
+                    steering_voltage_value = STEERING_MID_VALUE;
+                } else {
+                    steering_voltage_value += return_step;
+                }
+
+                update_steering_voltage(steering_voltage_value);
+            }
         }
     }
 }
