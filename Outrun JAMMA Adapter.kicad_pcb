@@ -12271,8 +12271,8 @@
 		)
 	)
 	(gr_rect
-		(start 191.054132 143.284193)
-		(end 202.8 147.515806)
+		(start 194.485387 135.927066)
+		(end 198.717 147.672934)
 		(stroke
 			(width 0.1)
 			(type default)
@@ -12319,18 +12319,6 @@
 			(justify left bottom)
 		)
 	)
-	(gr_text "SEGA Outrun® JAMMA Adapter\nOutrun is a registered trademark of SEGA Corporation"
-		(at 97.4 81.4 0)
-		(layer "F.SilkS")
-		(uuid "9a3f7f30-fd52-419b-9461-f9523d062cef")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.1)
-			)
-			(justify left bottom)
-		)
-	)
 	(gr_text "JAMMA"
 		(at 175.97 76.8 0)
 		(layer "F.SilkS")
@@ -12356,9 +12344,21 @@
 		)
 	)
 	(gr_text "PARTS SIDE"
-		(at 192.543733 145.856499 0)
+		(at 197.140693 146.183333 90)
 		(layer "F.SilkS")
 		(uuid "bf5e84ec-dd3d-4bc3-b2ae-8eca72d1e3ba")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom)
+		)
+	)
+	(gr_text "SEGA Outrun® JAMMA Adapter\nOutrun is a registered trademark of SEGA Corporation"
+		(at 203.4 147.8 90)
+		(layer "F.SilkS")
+		(uuid "9a3f7f30-fd52-419b-9461-f9523d062cef")
 		(effects
 			(font
 				(size 1 1)
