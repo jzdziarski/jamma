@@ -46,12 +46,12 @@
 /*
  * Accelerator Pedal DAC Constants
  * Voltage step size (~19.6mV per step)
- * From manual: Valid pedal ranges 32-144
+ * From manual: Valid pedal ranges 32-146
  */
 
 #define ACCEL_ADJUST_STEP         2    /* ~98mV per step */
 #define ACCEL_MIN_VALUE           32
-#define ACCEL_MAX_VALUE           144
+#define ACCEL_MAX_VALUE           146
 
 /*
  * Steering DAC Constants - Game-recognized range (51-203), Zeroed @ 128
