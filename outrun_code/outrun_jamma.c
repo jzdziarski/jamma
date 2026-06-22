@@ -41,7 +41,7 @@
 /* Steering button repeat: 80ms delay then 25ms (~40Hz) per step.
  * With step=2, full lock (76 units) takes ~80 + 38*25 = ~1s. */
 #define STEERING_BUTTON_REPEAT_DELAY_MS   0
-#define STEERING_BUTTON_REPEAT_RATE_MS    1
+#define STEERING_BUTTON_REPEAT_RATE_MS    0.75
 
 /*
  * Accelerator Pedal DAC Constants
@@ -58,7 +58,7 @@
  * Voltage step size (~19.6mV per step)
  */
 
-#define STEERING_ADJUST_STEP      2     /* ~39mV per step for smooth steering */
+#define STEERING_ADJUST_STEP      1     /* ~39mV per step for smooth steering */
 #define STEERING_MIN_VALUE        51
 #define STEERING_MAX_VALUE        203
 #define STEERING_MID_VALUE  	  128
