@@ -1,12 +1,16 @@
 # /jamma
-## Various JAMMA adapters and interface boards 
-For non-commercial educational use only  
+## Arcade JAMMA adapters and interface boards 
+License: For non-commercial educational use only
 
-CAD                   PCB CAD Files
-BOM                   Bill of Materials (CSV)
-Microcode             Microcontroller Code
-Renderings            PCB Renderings
-  
+|Subfolder|Description|
+|--------------------------------|------------------------------------|
+|CAD|PCB CAD Files|
+|BOM|Bill of Materials (CSV)|
+|Microcode|Microcontroller Code|
+|Renderings|PCB Renderings|
+
+
+## PCB Library
 |Platform|Title|Tag|Status|
 |-------------------|------------|-------------------------|----------|  
 |Atari System I	|RoadBlasters|ROADBLASTERS_REV_0|Release|
