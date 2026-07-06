@@ -2,9 +2,10 @@
 ## Various JAMMA adapters and interface boards 
 For non-commercial educational use only  
 
-Renderings            Renderings of PCBs
-BOM                   BOM CSV Files
+CAD                   PCB CAD Files
+BOM                   Bill of Materials (CSV)
 Microcode             Microcontroller Code
+Renderings            PCB Renderings
   
 |Platform|Title|Tag|Status|
 |-------------------|------------|-------------------------|----------|  
