@@ -5,4 +5,5 @@
 *.o
 *-backups
 *.kicad_prl
+production
 fabrication-toolkit-options.json
