@@ -20,6 +20,7 @@ License: For non-commercial educational use only
 |Blasteroids |Blasteroids|BLASTEROIDS_REV_0|Release|
 |Midway MCR III	|Spy Hunter|SPY_HUNTER_REV_0|Release|
 |Midway MCR III	|Spy Hunter|SPY_HUNTER_REV_1|Release|
+|Midway MCR III |Spy Hunter|SPY_HUNTER_REV_1.1|Development|
 |Midway MCR II	|TRON|TRON_REV_0|Release|
 |Midway MCR II	|TRON|TRON_REV_1|Release|
 |SEGA Super Scaler|Outrun|OUTRUN_REV_0|Release|
