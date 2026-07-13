@@ -12501,7 +12501,7 @@
 		(at 126 81.965 90)
 		(descr "CP, Radial series, Radial, pin pitch=2.00mm, diameter=5mm, height=7mm, Electrolytic Capacitor")
 		(tags "CP Radial series Radial pin pitch 2.00mm diameter 5mm height 7mm Electrolytic Capacitor")
-		(property "Reference" "C13"
+		(property "Reference" "C20"
 			(at 0.9 -3.7 90)
 			(layer "F.SilkS")
 			(uuid "0d24c92c-64be-4b7a-b59a-b937cea84e9e")
