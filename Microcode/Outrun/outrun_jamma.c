@@ -8,7 +8,7 @@
  * Pin Assignments:
  * Inputs (active-low with internal pull-ups):
  *   PD2 (Pin 4)  - B1 (Accelerate), enabled adjustable VOUTA
- *   PD3 (Pin 5)  - B2 (Shift toggle)
+ *   PD3 (Pin 5)  - B2 (Shift, toggle or momentary per SHIFT_MODE)
  *   PD4 (Pin 6)  - B3 (Brake), digital H/L output
  *   PD5 (Pin 11) - UP, Increases accelerator voltage
  *   PD6 (Pin 12) - DOWN, Decreases accelerator voltage
@@ -17,7 +17,7 @@
  * 
  * Outputs:
  *   PB1 (Pin 15) - B3_OUT (Brake, HIGH or LOW)
- *   PB2 (Pin 16) - B2_OUT (Shift output, HIGH or LOW, Latched)
+ *   PB2 (Pin 16) - B2_OUT (Shift output; latched toggle or momentary per SHIFT_MODE)
  *   PB3 (Pin 17) - MCP4902 CS
  *   PB4 (Pin 18) - MCP4902 SDI
  *   PB5 (Pin 19) - MCP4902 SCK
@@ -92,11 +92,38 @@
 #define MCP_SD_PIN_BIT          PB4     // DAC SDI - Pin 18 to MCP4902 Pin 5
 #define MCP_SCK_PIN_BIT         PB5     // DAC SCK - Pin 19 to MCP4902 Pin 4
 
+/*
+ * B2 (Shift) Output Mode
+ * ----------------------
+ * The hi/lo shifter input (B2) is mapped to a digital output (PB2). Two
+ * behaviors are selectable at compile time:
+ *
+ *   SHIFT_MODE_TOGGLE     (default) Latching toggle: each confirmed press
+ *                         flips the output between HIGH and LOW (hi/lo gear).
+ *                         Matches the original Outrun shifter.
+ *
+ *   SHIFT_MODE_MOMENTARY  Output follows the debounced button directly: HIGH
+ *                         while held, LOW when released. Use this for titles
+ *                         that repurpose the shifter as a momentary "turbo"
+ *                         button.
+ *
+ * Select at build time, e.g.:
+ *   make SHIFT_MODE=SHIFT_MODE_MOMENTARY
+ */
+#define SHIFT_MODE_TOGGLE     0
+#define SHIFT_MODE_MOMENTARY  1
+
+#ifndef SHIFT_MODE
+#define SHIFT_MODE SHIFT_MODE_TOGGLE
+#endif
+
 /* Globals */
 static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;
 static uint8_t steering_voltage_value = STEERING_MID_VALUE;
 static uint8_t last_steering_dac_value = 0xFF;              /* Sentinel: forces first write */
+#if (SHIFT_MODE == SHIFT_MODE_TOGGLE)
 static uint8_t b2_toggle_state        = 1;                  // Shift latch (L)
+#endif
 static uint8_t brake_pressed_state    = 0;                  // Brake (L)
 
 /* Globals for button repeat timing */
@@ -409,13 +436,13 @@ void update_outputs(void)
         update_accel_voltage(accel_voltage_value);
     }
 
-    /* B2: Shift Toggle, Digital Output, Maintains state internally */
+    /* B2: Shift, Digital Output (latched toggle or momentary per SHIFT_MODE) */
 
     static uint8_t b2_confirmed_state = 0;
     static uint8_t b2_raw_last = 0;
     static uint32_t b2_debounce_counter = 0;
     uint8_t b2_current = read_button(&PIND, B2_PIN_BIT);
-    
+
     /* Debounce Detection */
     if (b2_current != b2_raw_last) {
         b2_debounce_counter = 0;
@@ -427,10 +454,17 @@ void update_outputs(void)
     if (b2_debounce_counter == MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
         if (b2_current != b2_confirmed_state) {
             b2_confirmed_state = b2_current;
+#if (SHIFT_MODE == SHIFT_MODE_MOMENTARY)
+            /* Momentary: output tracks the debounced button directly.
+             * HIGH while held, LOW when released (turbo button). */
+            set_shift_output(b2_current);
+#else
+            /* Toggle: flip the latch on each confirmed press only. */
             if (b2_current == 1) {  // Only toggle on press, not release
                 b2_toggle_state = !b2_toggle_state;
                 set_shift_output(b2_toggle_state);
             }
+#endif
         }
     }
     

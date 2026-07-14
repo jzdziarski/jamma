@@ -22,6 +22,13 @@ OPT = -Os
 CFLAGS = -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL $(OPT) -Wall -Wextra
 CFLAGS += -ffunction-sections -fdata-sections
 
+# B2 shifter output mode (see outrun_jamma.c for details):
+#   SHIFT_MODE_TOGGLE      latching hi/lo toggle (default, original Outrun)
+#   SHIFT_MODE_MOMENTARY   momentary: HIGH while held, for a turbo button
+# Override on the command line, e.g.: make SHIFT_MODE=SHIFT_MODE_MOMENTARY
+SHIFT_MODE ?= SHIFT_MODE_TOGGLE
+CFLAGS += -DSHIFT_MODE=$(SHIFT_MODE)
+
 # Linker flags
 LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
 
