@@ -23,7 +23,8 @@ License: For non-commercial educational use only
 |Midway MCR III |Spy Hunter|SPY_HUNTER_REV_1.1|Development|
 |Midway MCR II	|TRON|TRON_REV_0|Release|
 |Midway MCR II	|TRON|TRON_REV_1|Release|
-|SEGA Super Scaler|Outrun, Super Hang-On|OUTRUN_REV_0|Release|
+|SEGA Super Scaler|Outrun|OUTRUN_REV_0|Release|
+|SEGA Super Scaler|Super Hang-On|SUPER_HANG_ON_REV_0|Development|
 |Williams System	|*|WILLIAMS_REV_0|Release|
 |Williams System        |*|WILLIAMS_REV_1|Development|
 |Universal Edge	|*|UNIVERSAL_EDGE|Release|
