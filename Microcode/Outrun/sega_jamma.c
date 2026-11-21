@@ -1,6 +1,6 @@
 /*
- * @file outrun_jamma.c
- * @brief Sega Outrun Rev. B to JAMMA Adapter Firmware
+ * @file sega_jamma.c
+ * @brief Sega Superscaler to JAMMA Adapter Firmware
  * 
  * This firmware controls the ATMEGA328P microcontroller to interface
  * between JAMMA inputs and analog voltage outputs via MCP4902 DAC.
@@ -8,7 +8,7 @@
  * Pin Assignments:
  * Inputs (active-low with internal pull-ups):
  *   PD2 (Pin 4)  - B1 (Accelerate), enabled adjustable VOUTA
- *   PD3 (Pin 5)  - B2 (Shift, toggle or momentary per SHIFT_MODE)
+ *   PD3 (Pin 5)  - B2 (Shift, toggle or momentary per GAME_MODE)
  *   PD4 (Pin 6)  - B3 (Brake), digital H/L output
  *   PD5 (Pin 11) - UP, Increases accelerator voltage
  *   PD6 (Pin 12) - DOWN, Decreases accelerator voltage
@@ -17,7 +17,7 @@
  * 
  * Outputs:
  *   PB1 (Pin 15) - B3_OUT (Brake, HIGH or LOW)
- *   PB2 (Pin 16) - B2_OUT (Shift output; latched toggle or momentary per SHIFT_MODE)
+ *   PB2 (Pin 16) - B2_OUT (Shift output; latched toggle or momentary per GAME_MODE)
  *   PB3 (Pin 17) - MCP4902 CS
  *   PB4 (Pin 18) - MCP4902 SDI
  *   PB5 (Pin 19) - MCP4902 SCK
@@ -32,7 +32,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
-#include "outrun_jamma.h"
+#include "sega_jamma.h"
 
 #define DEBOUNCE_DELAY_MS       20
 #define BUTTON_REPEAT_DELAY_MS  300
@@ -82,6 +82,7 @@
 #define B3_PIN_BIT              PD4     // Brake          - Pin 6  (XCK/T0)
 #define UP_PIN_BIT              PD5     // Increase accel - Pin 11 (T1)
 #define DOWN_PIN_BIT            PD6     // Decrease accel - Pin 12 (AIN0)
+
 #define LEFT_PIN_BIT            PD7     // Decrease steer - Pin 13 (AIN1)
 #define RIGHT_PIN_BIT           PB0     // Increase steer - Pin 14 (ICP1)
 
@@ -98,30 +99,26 @@
  * The hi/lo shifter input (B2) is mapped to a digital output (PB2). Two
  * behaviors are selectable at compile time:
  *
- *   SHIFT_MODE_TOGGLE     (default) Latching toggle: each confirmed press
+ *   GAME_MODE_OUTRUN     (default) Latching toggle: each confirmed press
  *                         flips the output between HIGH and LOW (hi/lo gear).
  *                         Matches the original Outrun shifter.
  *
- *   SHIFT_MODE_MOMENTARY  Output follows the debounced button directly: HIGH
- *                         while held, LOW when released. Use this for titles
- *                         that repurpose the shifter as a momentary "turbo"
- *                         button.
+ *   GAME_MODE_HANGON  Inverted momentary output: LOW while held, HIGH
+ *                         when released. Use this for titles that repurpose
+ *                         the shifter as a momentary "turbo" button.
  *
  * Select at build time, e.g.:
- *   make SHIFT_MODE=SHIFT_MODE_MOMENTARY
+ *   make GAME_MODE=GAME_MODE_HANGON
  */
-#define SHIFT_MODE_TOGGLE     0
-#define SHIFT_MODE_MOMENTARY  1
-
-#ifndef SHIFT_MODE
-#define SHIFT_MODE SHIFT_MODE_TOGGLE
+#ifndef GAME_MODE
+#error "NO_GAME_MODE_DEFINED"
 #endif
 
 /* Globals */
 static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;
 static uint8_t steering_voltage_value = STEERING_MID_VALUE;
 static uint8_t last_steering_dac_value = 0xFF;              /* Sentinel: forces first write */
-#if (SHIFT_MODE == SHIFT_MODE_TOGGLE)
+#if (GAME_MODE == GAME_MODE_OUTRUN)
 static uint8_t b2_toggle_state        = 1;                  // Shift latch (L)
 #endif
 static uint8_t brake_pressed_state    = 0;                  // Brake (L)
@@ -205,7 +202,11 @@ void gpio_init(void)
     PORTB &= ~(1 << PB1); // LOW (Default State)
     
     DDRB |= (1 << PB2);   // B2_OUT (Shift) - Pin 16
+#if (GAME_MODE == GAME_MODE_HANGON)
+    PORTB |= (1 << PB2);  // HIGH (Released; inverted output)
+#else
     PORTB &= ~(1 << PB2); // LOW (Default State)
+#endif
     
     /* Configure SPI pins for MCP4902 */
     DDRB |= (1 << PB3);   // CS
@@ -436,7 +437,7 @@ void update_outputs(void)
         update_accel_voltage(accel_voltage_value);
     }
 
-    /* B2: Shift, Digital Output (latched toggle or momentary per SHIFT_MODE) */
+    /* B2: Shift, Digital Output (latched toggle or momentary per GAME_MODE) */
 
     static uint8_t b2_confirmed_state = 0;
     static uint8_t b2_raw_last = 0;
@@ -454,10 +455,9 @@ void update_outputs(void)
     if (b2_debounce_counter == MS_TO_LOOPS(DEBOUNCE_DELAY_MS)) {
         if (b2_current != b2_confirmed_state) {
             b2_confirmed_state = b2_current;
-#if (SHIFT_MODE == SHIFT_MODE_MOMENTARY)
-            /* Momentary: output tracks the debounced button directly.
-             * HIGH while held, LOW when released (turbo button). */
-            set_shift_output(b2_current);
+#if (GAME_MODE == GAME_MODE_HANGON)
+            /* Inverted momentary: LOW while held, HIGH when released. */
+            set_shift_output(!b2_current);
 #else
             /* Toggle: flip the latch on each confirmed press only. */
             if (b2_current == 1) {  // Only toggle on press, not release
@@ -583,8 +583,12 @@ void update_outputs(void)
     static uint8_t right_raw_last = 0;
     static uint32_t right_debounce_counter = 0;
 
-    /* Debounce RIGHT (PB0) */
+    /* Debounce logical RIGHT input */
+#if (GAME_MODE == GAME_MODE_HANGON)
+    uint8_t right_raw = read_button(&PIND, LEFT_PIN_BIT);
+#else
     uint8_t right_raw = read_button(&PINB, RIGHT_PIN_BIT);
+#endif
     if (right_raw != right_raw_last) {
         right_debounce_counter = 0;
         right_raw_last = right_raw;
@@ -628,8 +632,12 @@ void update_outputs(void)
         right_steering_pressed = 0;
     }
 
-    /* Debounce LEFT (PD7) */
+    /* Debounce logical LEFT input */
+#if (GAME_MODE == GAME_MODE_HANGON)
+    uint8_t left_raw = read_button(&PINB, RIGHT_PIN_BIT);
+#else
     uint8_t left_raw = read_button(&PIND, LEFT_PIN_BIT);
+#endif
     if (left_raw != left_raw_last) {
         left_debounce_counter = 0;
         left_raw_last = left_raw;

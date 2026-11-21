@@ -5718,7 +5718,6 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "REFA")
 			(uuid "1a31c181-8ad7-4647-b28d-f4491d5c5c34")
 		)
 		(pad "8" thru_hole circle
@@ -5727,7 +5726,6 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
-			(net "REFB")
 			(uuid "400607f1-ad99-455b-b4f5-5567408938f9")
 		)
 		(pad "9" thru_hole circle
@@ -5754,6 +5752,7 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
+			(net "REFA")
 			(uuid "4bb51003-5cf2-4244-b1b1-d44ce3876fad")
 		)
 		(pad "12" thru_hole circle
@@ -5762,6 +5761,7 @@
 			(drill 1)
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
+			(net "REFB")
 			(uuid "387f8b2e-25eb-4b1e-95b8-c4e7bd246239")
 		)
 		(pad "13" thru_hole circle
@@ -13359,6 +13359,14 @@
 		(uuid "91f49c3e-7ac4-4fa2-a776-e99382404173")
 	)
 	(segment
+		(start 161.75 133.4)
+		(end 158.3 133.4)
+		(width 0.4)
+		(layer "F.Cu")
+		(net "+5V")
+		(uuid "9324c8bd-c86c-47b0-8d42-ffd7ca9f6d3f")
+	)
+	(segment
 		(start 119.8 97.08)
 		(end 137.08 97.08)
 		(width 0.2)
@@ -13384,7 +13392,7 @@
 	)
 	(segment
 		(start 177.2 133.4)
-		(end 158.3 133.4)
+		(end 161.75 133.4)
 		(width 0.4)
 		(layer "F.Cu")
 		(net "+5V")
@@ -13413,6 +13421,14 @@
 		(layer "F.Cu")
 		(net "+5V")
 		(uuid "9fe1c0a0-0285-4c8e-b11f-ed34ffc1b91c")
+	)
+	(segment
+		(start 161.75 133.4)
+		(end 160.84 133.4)
+		(width 0.4)
+		(layer "F.Cu")
+		(net "+5V")
+		(uuid "a617d458-80e6-48bf-b2bf-061cd084fe56")
 	)
 	(segment
 		(start 129.15 109.445555)
@@ -16532,11 +16548,27 @@
 	)
 	(segment
 		(start 159.750661 127.91)
-		(end 127.97 127.91)
+		(end 137 127.91)
 		(width 0.2)
 		(layer "F.Cu")
 		(net "REFB")
 		(uuid "02f42446-992a-45c0-8aee-e9aaa1455568")
+	)
+	(segment
+		(start 137 127.91)
+		(end 133.05 127.91)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "REFB")
+		(uuid "12e4ae56-8d97-4f3e-8728-105eebe0b08f")
+	)
+	(segment
+		(start 133.05 127.91)
+		(end 131.5 129.46)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "REFB")
+		(uuid "617f8bb3-2755-4bcc-bd53-d46b4492ce33")
 	)
 	(segment
 		(start 168.414405 109.174405)
@@ -16545,14 +16577,6 @@
 		(layer "F.Cu")
 		(net "REFB")
 		(uuid "7d44a61e-254c-4c65-8b06-c42edd869df0")
-	)
-	(segment
-		(start 127.97 127.91)
-		(end 126.42 129.46)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "REFB")
-		(uuid "a494d44d-d525-4640-994a-f2c7839635f1")
 	)
 	(segment
 		(start 168.414405 119.246256)
@@ -16571,8 +16595,16 @@
 		(uuid "f42a6951-01ef-4ed6-ada5-9f1c213c6bc0")
 	)
 	(segment
+		(start 130.35 130.85)
+		(end 131.5 132)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "REFA")
+		(uuid "1ae9bbdf-341f-4328-bfe4-990a89aa34c1")
+	)
+	(segment
 		(start 159.584974 127.510001)
-		(end 126.743653 127.510001)
+		(end 130.75 127.510001)
 		(width 0.2)
 		(layer "F.Cu")
 		(net "REFA")
@@ -16585,14 +16617,6 @@
 		(layer "F.Cu")
 		(net "REFA")
 		(uuid "1d398b45-4cf5-47cd-93c5-fe2936404433")
-	)
-	(segment
-		(start 126.743653 127.510001)
-		(end 125.27 128.983654)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "REFA")
-		(uuid "2ad9c95c-23ef-4799-a014-54f335167d4c")
 	)
 	(segment
 		(start 168 119.094975)
@@ -16611,6 +16635,14 @@
 		(uuid "35039f0a-49de-43a6-bf60-666d3e995151")
 	)
 	(segment
+		(start 130.75 127.510001)
+		(end 130.35 127.910001)
+		(width 0.2)
+		(layer "F.Cu")
+		(net "REFA")
+		(uuid "399c6f93-686e-4926-8515-e73f95e70c61")
+	)
+	(segment
 		(start 161.94 111.305686)
 		(end 163.04 112.405686)
 		(width 0.2)
@@ -16627,14 +16659,6 @@
 		(uuid "6ccaf78d-1f37-4147-bd96-dbd67ec926d1")
 	)
 	(segment
-		(start 125.27 130.85)
-		(end 126.42 132)
-		(width 0.2)
-		(layer "F.Cu")
-		(net "REFA")
-		(uuid "960e0347-cbc5-4d33-bdd3-115b72a85b8f")
-	)
-	(segment
 		(start 168 116.8)
 		(end 168 119.094975)
 		(width 0.2)
@@ -16643,12 +16667,12 @@
 		(uuid "9c128ee1-af79-4348-92f2-e0c6c4c0b795")
 	)
 	(segment
-		(start 125.27 128.983654)
-		(end 125.27 130.85)
+		(start 130.35 127.910001)
+		(end 130.35 130.85)
 		(width 0.2)
 		(layer "F.Cu")
 		(net "REFA")
-		(uuid "de3ff3e7-f3f8-44c2-82e8-ceee2ead70e6")
+		(uuid "d912f7da-8cef-4547-843f-78150c96978c")
 	)
 	(segment
 		(start 164 116.6)

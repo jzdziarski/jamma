@@ -2,7 +2,7 @@
 # ATMEGA328P @ 8MHz INTERNAL CLOCK (no external crystal required)
 
 # Project name (without extension)
-PROJECT = outrun_jamma
+PROJECT = sega_jamma
 
 # MCU type
 MCU = atmega328p
@@ -22,12 +22,12 @@ OPT = -Os
 CFLAGS = -mmcu=$(MCU) -DF_CPU=$(F_CPU)UL $(OPT) -Wall -Wextra
 CFLAGS += -ffunction-sections -fdata-sections
 
-# B2 shifter output mode (see outrun_jamma.c for details):
-#   SHIFT_MODE_TOGGLE      latching hi/lo toggle (default, original Outrun)
-#   SHIFT_MODE_MOMENTARY   momentary: HIGH while held, for a turbo button
-# Override on the command line, e.g.: make SHIFT_MODE=SHIFT_MODE_MOMENTARY
-SHIFT_MODE ?= SHIFT_MODE_TOGGLE
-CFLAGS += -DSHIFT_MODE=$(SHIFT_MODE)
+# B2 shifter output mode (see sega_jamma.c for details):
+#   1 (GAME_MODE_OUTRUN)      latching hi/lo toggle (default, original Outrun)
+#   2 (GAME_MODE_HANGON)      momentary: HIGH while held, for a turbo button, invert steering
+# Override on the command line, e.g.: make GAME_MODE=GAME_MODE_HANGON
+GAME_MODE ?= 1
+CFLAGS += -DGAME_MODE=$(GAME_MODE)
 
 # Linker flags
 LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
@@ -66,7 +66,7 @@ $(PROJECT).elf: $(OBJ)
 
 # Create hex file from ELF
 hex: $(PROJECT).elf
-	$(OBJCOPY) -O ihex -R .eeprom $< $(PROJECT).hex
+	$(OBJCOPY) -O ihex -R .eeprom $< image.hex
 
 # Create eeprom hex file (if needed)
 eeprom: $(PROJECT).elf
@@ -104,7 +104,7 @@ full_build: fuses flash
 
 # Clean build artifacts
 clean:
-	rm -f $(OBJ) $(PROJECT).d $(PROJECT).elf $(PROJECT).hex $(PROJECT)eep.hex
+	rm -f $(OBJ) $(PROJECT).d $(PROJECT).elf image.hex $(PROJECT)eep.hex $(PROJECT).d.*
 
 # Clean all including hex files
 distclean: clean
