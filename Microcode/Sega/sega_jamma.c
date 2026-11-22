@@ -34,6 +34,14 @@
 #include <util/delay.h>
 #include "sega_jamma.h"
 
+#if GAME_MODE == GAME_MODE_OUTRUN
+    #pragma message "Building for Sega OutRun"
+#elif GAME_MODE == GAME_MODE_HANGON
+    #pragma message "Building for Sega Hang-On"
+#else
+    #error "Unsupported GAME_MODE defined"
+#endif
+
 #define DEBOUNCE_DELAY_MS       20
 #define BUTTON_REPEAT_DELAY_MS  300
 #define BUTTON_REPEAT_RATE_MS   31      /* ~2s full sweep: 300ms delay + 54 steps * 31ms */
@@ -41,7 +49,11 @@
 /* Steering button repeat: 80ms delay then 25ms (~40Hz) per step.
  * With step=2, full lock (76 units) takes ~80 + 38*25 = ~1s. */
 #define STEERING_BUTTON_REPEAT_DELAY_MS   0
+#if (GAME_MODE == GAME_MODE_OUTRUN)
 #define STEERING_BUTTON_REPEAT_RATE_MS    0.75
+#else
+#define STEERING_BUTTON_REPEAT_RATE_MS    1.00
+#endif
 
 /*
  * Accelerator Pedal DAC Constants
@@ -110,9 +122,6 @@
  * Select at build time, e.g.:
  *   make GAME_MODE=GAME_MODE_HANGON
  */
-#ifndef GAME_MODE
-#error "NO_GAME_MODE_DEFINED"
-#endif
 
 /* Globals */
 static uint8_t accel_voltage_value    = ACCEL_MAX_VALUE;

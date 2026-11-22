@@ -26,8 +26,17 @@ CFLAGS += -ffunction-sections -fdata-sections
 #   1 (GAME_MODE_OUTRUN)      latching hi/lo toggle (default, original Outrun)
 #   2 (GAME_MODE_HANGON)      momentary: HIGH while held, for a turbo button, invert steering
 # Override on the command line, e.g.: make GAME_MODE=GAME_MODE_HANGON
-GAME_MODE ?= 1
+MODES = -DGAME_MODE_OUTRUN=1 -DGAME_MODE_HANGON=2
+GAME_MODE ?= GAME_MODE_OUTRUN
 CFLAGS += -DGAME_MODE=$(GAME_MODE)
+
+ifeq ($(GAME_MODE),GAME_MODE_OUTRUN)
+    TARGET_HEX = outrun.hex
+else ifeq ($(GAME_MODE),GAME_MODE_HANGON)
+    TARGET_HEX = super_hang_on.hex
+else
+    $(error Unknown GAME_MODE: $(GAME_MODE))
+endif
 
 # Linker flags
 LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
@@ -66,7 +75,7 @@ $(PROJECT).elf: $(OBJ)
 
 # Create hex file from ELF
 hex: $(PROJECT).elf
-	$(OBJCOPY) -O ihex -R .eeprom $< image.hex
+	$(OBJCOPY) -O ihex -R .eeprom $< $(TARGET_HEX)
 
 # Create eeprom hex file (if needed)
 eeprom: $(PROJECT).elf
@@ -104,7 +113,7 @@ full_build: fuses flash
 
 # Clean build artifacts
 clean:
-	rm -f $(OBJ) $(PROJECT).d $(PROJECT).elf image.hex $(PROJECT)eep.hex $(PROJECT).d.*
+	rm -f $(OBJ) $(PROJECT).d $(PROJECT).elf $(TARGET_HEX) $(PROJECT)eep.hex $(PROJECT).d.* *.hex
 
 # Clean all including hex files
 distclean: clean
